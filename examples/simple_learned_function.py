@@ -18,7 +18,6 @@ class Model(Module):
     def predict(self, inputs: Tensor) -> Tensor:
         return inputs @ self.w + self.b
 
-
 batch_size = 32
 model = Model()
 optimizer = SGD(model.parameters(), 0.001)

@@ -1,17 +1,19 @@
 import numpy as np
-import mindspore
+import warnings
 from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
+from mindspore.common import dtype as mstype
+
+from mindtorch import BACKEND
 from .ops import _sum, _ones_like, _zeros_like, _add, _mul, _neg, _matmul, _strided_slice, _strided_slice_grad
-from .utils import slice_helper
+from .utils import slice_helper, ASCEND_DTYPE_MAP
 
 class Dependency(NamedTuple):
     tensor: 'Tensor'
     grad_fn: Callable[[Array], Array]
 
 
-Arrayable = Union[float, list, np.ndarray, Array]
-
+Arrayable = Union[float, list, int, Array]
 
 def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Tensor):
@@ -19,6 +21,19 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Array):
         return arrayable
     if dtype is None:
+        if BACKEND == 'Ascend':
+            if isinstance(arrayable, (list, tuple)):
+                arrayable = np.array(arrayable)
+
+            if isinstance(arrayable, (int, float)):
+                origin_dtype = type(arrayable)
+                dtype = ASCEND_DTYPE_MAP[origin_dtype]
+                warnings.warn(f'Tensor dtype will auto change from system type {origin_dtype} to tensor dtype {dtype} on Ascend.')
+            elif isinstance(arrayable, np.ndarray):
+                origin_dtype = str(arrayable.dtype)
+                dtype = ASCEND_DTYPE_MAP.get(origin_dtype, None)
+                warnings.warn(f'Tensor dtype will auto change from numpy dtype {origin_dtype} to tensor dtype {dtype} on Ascend.')
+            return Array(arrayable, dtype)
         return Array(arrayable)
     return Array(arrayable, dtype)
 
@@ -34,7 +49,7 @@ def ensureArray(tensorable: Tensorable) -> 'Tensor':
 
 
 class Tensor:
-    """minispore defined Tensor."""
+    """mindtorch defined Tensor."""
 
     def __init__(self,
                  data: Arrayable,

@@ -1,3 +1,5 @@
+from mindspore._c_expression import typing
+
 def slice_helper(slice_spec):
     if not isinstance(slice_spec, (list, tuple)):
         slice_spec = [slice_spec]
@@ -45,3 +47,11 @@ def slice_helper(slice_spec):
         index += 1
         
     return begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask
+
+
+ASCEND_DTYPE_MAP = {
+    float: typing.Float(32),
+    int: typing.Int(32),
+    "float64": typing.Float(32),
+    "int64": typing.Int(32),    
+}

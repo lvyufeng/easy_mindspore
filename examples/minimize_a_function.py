@@ -4,7 +4,7 @@ to minimize a function, say ** 2
 """
 import sys
 sys.path.append('./')
-from minispore.tensor import Tensor,  mul
+from mindtorch.tensor import Tensor,  mul
 
 
 x = Tensor([10., -10., 10., -5., 6., 3., 1.], requires_grad=True)

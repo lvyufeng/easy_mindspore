@@ -1,5 +1,5 @@
 import numpy as np
-from minispore.tensor import Tensor
+from mindtorch.tensor import Tensor
 
 
 class Parameter(Tensor):

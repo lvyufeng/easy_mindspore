@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from minispore.tensor import Tensor
+from mindtorch.tensor import Tensor
 
 
 class TestTensorMul(unittest.TestCase):

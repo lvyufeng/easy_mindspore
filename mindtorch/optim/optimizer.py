@@ -1,7 +1,7 @@
 """
 Optimizers go there
 """
-from minispore.nn import Module
+from mindtorch.nn import Module
 
 
 class Optimizer:

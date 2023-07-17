@@ -1,5 +1,5 @@
 import unittest
-from minispore.tensor import Tensor, add
+from mindtorch.tensor import Tensor, add
 
 
 class TestTensorSum(unittest.TestCase):

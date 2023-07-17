@@ -1,8 +1,6 @@
-from mindspore import context
 from mindspore.ops import Primitive
 from mindspore.common.api import _PyNativeExecutor
-
-BACKEND = context.get_context('device_target')
+from mindtorch import BACKEND
 
 executor = _PyNativeExecutor()
 

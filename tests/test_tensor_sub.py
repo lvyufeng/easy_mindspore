@@ -1,6 +1,6 @@
 import unittest
 
-from minispore.tensor import Tensor, sub
+from mindtorch.tensor import Tensor, sub
 
 
 class TestTensorSub(unittest.TestCase):

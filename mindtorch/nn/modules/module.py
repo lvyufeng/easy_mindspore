@@ -1,4 +1,4 @@
-from minispore.parameter import Parameter
+from mindtorch.parameter import Parameter
 
 from typing import Iterator
 
