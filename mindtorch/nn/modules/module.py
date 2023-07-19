@@ -1,4 +1,4 @@
-from mindtorch.parameter import Parameter
+from mindtorch.nn.parameter import Parameter
 
 from typing import Iterator
 

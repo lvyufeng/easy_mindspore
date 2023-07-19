@@ -1,11 +1,13 @@
 import numpy as np
 import warnings
 from typing import List, NamedTuple, Callable, Optional, Union
+from mindspore._c_expression import TensorNode
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 from mindspore.common import dtype as mstype
 
 from mindtorch import BACKEND
-from .ops import _sum, _ones_like, _zeros_like, _add, _mul, _neg, _matmul, _strided_slice, _strided_slice_grad
+from ._operations import raw_sum, raw_zeros_like, raw_add, raw_mul, raw_neg, raw_matmul, raw_strided_slice, \
+    raw_strided_slice_grad, raw_tile
 from .utils import slice_helper, ASCEND_DTYPE_MAP
 
 class Dependency(NamedTuple):
@@ -18,7 +20,7 @@ Arrayable = Union[float, list, int, Array]
 def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Tensor):
         return arrayable.data
-    if isinstance(arrayable, Array):
+    if isinstance(arrayable, (Array, TensorNode)):
         return arrayable
     if dtype is None:
         if BACKEND == 'Ascend':
@@ -32,7 +34,7 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
             elif isinstance(arrayable, np.ndarray):
                 origin_dtype = str(arrayable.dtype)
                 dtype = ASCEND_DTYPE_MAP.get(origin_dtype, None)
-                warnings.warn(f'Tensor dtype will auto change from numpy dtype {origin_dtype} to tensor dtype {dtype} on Ascend.')
+                warnings.warn(f'Tensor dtype will auto change from numpy dtyensure_tensorpe {origin_dtype} to tensor dtype {dtype} on Ascend.')
             return Array(arrayable, dtype)
         return Array(arrayable)
     return Array(arrayable, dtype)
@@ -41,7 +43,7 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
 Tensorable = Union['Tensor', float, np.ndarray]
 
 
-def ensureArray(tensorable: Tensorable) -> 'Tensor':
+def ensure_tensor(tensorable: Tensorable) -> 'Tensor':
     if isinstance(tensorable, Tensor):
         return tensorable
     else:
@@ -61,14 +63,14 @@ class Tensor:
         self.requires_grad = requires_grad
         self.depends_on = depends_on or []
 
-        self.shape = self.data.shape
+        self.shape = self.data.shape if isinstance(self.data, Array) else self.data.get_shape()
         self.grad: Optional['Tensor'] = None
 
         if self.requires_grad:
             self.zero_grad()
 
     def zero_grad(self) -> None:
-        self.grad = Tensor(_zeros_like(self.data))
+        self.grad = Tensor(raw_zeros_like(self.data))
 
     def __repr__(self) -> str:
         return f"Tensor({self.data.asnumpy()}, requires_grad={self.requires_grad})"
@@ -77,47 +79,47 @@ class Tensor:
         """
         geys called if I do t + other
         """
-        return add(self, ensureArray(other))
+        return add(self, ensure_tensor(other))
 
     def __radd__(self, other) -> 'Tensor':
         """ gets called if I do other + t """
-        return add(ensureArray(other), self)
+        return add(ensure_tensor(other), self)
 
     def __iadd__(self, other) -> 'Tensor':
         """
         when we do t += other
         """
-        self.data = _add(self.data, ensureArray(other).data)
+        self.data = raw_add(self.data, ensure_tensor(other).data)
         # Invalidate the gradient
         self.grad = None
         return self
 
     def __isub__(self, other) -> 'Tensor':
-        self.data = sub(self, ensureArray(other)).data
+        self.data = sub(self, ensure_tensor(other)).data
         # Invalidate the gradient
         self.grad = None
         return self
 
     def __imul__(self, other) -> 'Tensor':
-        self.data *= ensureArray(other).data
+        self.data *= ensure_tensor(other).data
         # Invalidate the gradient
         self.grad = None
         return self
 
     def __mul__(self, other) -> 'Tensor':
-        return mul(self, ensureArray(other))
+        return mul(self, ensure_tensor(other))
 
     def __rmul__(self, other) -> 'Tensor':
-        return mul(ensureArray(other), self)
+        return mul(ensure_tensor(other), self)
 
     def __neg__(self) -> 'Tensor':
         return neg(self)
 
     def __sub__(self, other) -> 'Tensor':
-        return sub(self, ensureArray(other))
+        return sub(self, ensure_tensor(other))
 
     def __rsub__(self, other) -> 'Tensor':
-        return sub(ensureArray(other), self)
+        return sub(ensure_tensor(other), self)
 
     def __matmul__(self, other) -> 'Tensor':
         return matmul(self, other)
@@ -138,7 +140,7 @@ class Tensor:
             else:
                 raise RuntimeError("grad must specified for non-0-tensor")
 
-        self.grad.data = _add(self.grad.data, grad.data)
+        self.grad.data = raw_add(self.grad.data, grad.data)
 
         for dependency in self.depends_on:
             backward_grad = dependency.grad_fn(grad.data)
@@ -157,7 +159,7 @@ def tensor_sum(t: Tensor) -> Tensor:
     Takes a tensor and returns the 0-tensor
     that's the sum of all its elements.
     """
-    data = _sum(t.data)
+    data = raw_sum(t.data)
     requires_grad = t.requires_grad
     if requires_grad:
         def grad_fn(grad: Array) -> Array:
@@ -165,7 +167,9 @@ def tensor_sum(t: Tensor) -> Tensor:
             grad is necessarily a 0-tensor, so each input element
             contributes that much
             """
-            return _mul(grad, _ones_like(t.data))
+            # print(grad.shape, t.data.shape)
+            # return _mul(grad, _ones_like(t.data))
+            return raw_mul(grad, Array(np.ones(t.data.shape)))
 
         depends_on = [Dependency(t, grad_fn)]
     else:
@@ -175,7 +179,7 @@ def tensor_sum(t: Tensor) -> Tensor:
 
 
 def add(t1: Tensor, t2: Tensor) -> Tensor:
-    data = _add(t1.data, t2.data)
+    data = raw_add(t1.data, t2.data)
     requires_grad = t1.requires_grad or t2.requires_grad
 
     depends_on: List[Dependency] = []
@@ -187,14 +191,13 @@ def add(t1: Tensor, t2: Tensor) -> Tensor:
             # Sum out added dims
             ndims_added = len(grad.shape) - len(t1.data.shape)
             for _ in range(ndims_added):
-                grad = _sum(grad, axis=0)
+                grad = raw_sum(grad, axis=0)
 
             # Sum across broadcasted (but non-added dims)
             # (2,3) + (1,3) => (2,3) grad(2,3)
-
             for i, dim in enumerate(t1.shape):
                 if dim == 1:
-                    grad = _sum(grad, axis=i, keepdims=True)
+                    grad = raw_sum(grad, axis=i, keepdims=True)
 
             return grad
         depends_on.append(Dependency(t1, grad_fn1))
@@ -203,7 +206,7 @@ def add(t1: Tensor, t2: Tensor) -> Tensor:
         def grad_fn2(grad: Array) -> Array:
             ndims_added = len(grad.shape) - len(t2.data.shape)
             for _ in range(ndims_added):
-                grad = _sum(grad, axis=0)
+                grad = raw_sum(grad, axis=0)
              # Sum across broadcasted (but non-added dims)
             # (2,3) + (1,3) => (2,3) grad(2,3)
 
@@ -224,36 +227,36 @@ def mul(t1: Tensor, t2: Tensor) -> Tensor:
     have dL/dy
     dL/da = dL/dy * dy/da(b)
     """
-    data = _mul(t1.data, t2.data)
+    data = raw_mul(t1.data, t2.data)
     requires_grad = t1.requires_grad or t2.requires_grad
 
     depends_on: List[Dependency] = []
 
     if t1.requires_grad:
         def grad_fn1(grad: Array) -> Array:
-            grad = _mul(grad, t2.data)
+            grad = raw_mul(grad, t2.data)
 
             ndims_added = len(grad.shape) - len(t1.data.shape)
             for _ in range(ndims_added):
-                grad = _sum(grad, axis=0)
+                grad = raw_sum(grad, axis=0)
 
             for i, dim in enumerate(t1.shape):
                 if dim == 1:
-                    grad = _sum(grad, axis=i, keepdims=True)
+                    grad = raw_sum(grad, axis=i, keepdims=True)
 
             return grad
         depends_on.append(Dependency(t1, grad_fn1))
 
     if t2.requires_grad:
         def grad_fn2(grad: Array) -> Array:
-            grad = _mul(grad, t1.data)
+            grad = raw_mul(grad, t1.data)
             ndims_added = len(grad.shape) - len(t2.data.shape)
             for _ in range(ndims_added):
-                grad = _sum(grad, axis=0)
+                grad = raw_sum(grad, axis=0)
 
             for i, dim in enumerate(t2.shape):
                 if dim == 1:
-                    grad = _sum(grad, axis=i, keepdims=True)
+                    grad = raw_sum(grad, axis=i, keepdims=True)
 
             return grad
         depends_on.append(Dependency(t2, grad_fn2))
@@ -262,10 +265,10 @@ def mul(t1: Tensor, t2: Tensor) -> Tensor:
 
 
 def neg(t: Tensor) -> Tensor:
-    data = _neg(t.data)
+    data = raw_neg(t.data)
     requires_grad = t.requires_grad
     if requires_grad:
-        depends_on = [Dependency(t, lambda x: _neg(x))]
+        depends_on = [Dependency(t, lambda x: raw_neg(x))]
     else:
         depends_on = []
     return Tensor(data, requires_grad, depends_on)
@@ -284,19 +287,19 @@ def matmul(t1: Tensor, t2: Tensor) -> Tensor:
         grad1 = grad @ t2.T
         grad2 = t1.T @ grad
     """
-    data = _matmul(t1.data, t2.data)
+    data = raw_matmul(t1.data, t2.data)
     requires_grad = t1.requires_grad or t2.requires_grad
 
     depends_on: List[Dependency] = []
 
     if t1.requires_grad:
         def grad_fn1(grad: Array) -> Array:
-            return _matmul(grad, t2.data, transpose_b=True)
+            return raw_matmul(grad, t2.data, transpose_b=True)
         depends_on.append(Dependency(t1, grad_fn1))
 
     if t2.requires_grad:
         def grad_fn2(grad: Array) -> Array:
-            return _matmul(t1.data, grad, transpose_a=True)
+            return raw_matmul(t1.data, grad, transpose_a=True)
         depends_on.append(Dependency(t2, grad_fn2))
     return Tensor(data, requires_grad, depends_on)
 
@@ -306,11 +309,11 @@ def slice(t: Tensor, idx) -> Tensor:
     t2 = t1[3:4,4:4]
     """
     args = slice_helper(idx)
-    data = _strided_slice(t.data, *args)
+    data = raw_strided_slice(t.data, *args)
     requires_grad = t.requires_grad
     if requires_grad:
         def grad_fn(grad: Array) -> Array:
-            return _strided_slice_grad(grad, data.shape, *args)
+            return raw_strided_slice_grad(grad, data.shape, *args)
         depends_on = Dependency(t, grad_fn)
     else:
         depends_on = []
