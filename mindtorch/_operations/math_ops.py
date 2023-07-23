@@ -1,4 +1,5 @@
-from mindspore.ops import Primitive
+from mindspore import ops
+from mindspore.ops import Primitive, PrimitiveWithInfer
 from mindspore.common.api import _pynative_executor as executor
 from mindtorch import BACKEND
 from .array_ops import raw_squeeze, raw_unsqueeze
@@ -12,17 +13,35 @@ def raw_sum(x, axis=None, keepdims=False):
         axis = ()
     return executor.real_run_op(sum_op, 'ReduceSum', [x, axis])
 
-add_op = Primitive('Add')
+_add = ops.Add()
 def raw_add(x, y):
-    return executor.real_run_op(add_op, 'Add', [x, y])
+    return executor.real_run_op(_add, 'Add', [x, y])
 
-mul_op = Primitive('Mul')
+_sub = ops.Sub()
+def raw_sub(x, y):
+    return executor.real_run_op(_sub, 'Sub', [x, y])
+
+_mul = ops.Mul()
 def raw_mul(x, y):
-    return executor.real_run_op(mul_op, 'Mul', [x, y])
+    return executor.real_run_op(_mul, 'Mul', [x, y])
+
+_div = ops.Div()
+def raw_div(x, y):
+    return executor.real_run_op(_div, 'Div', [x, y])
+
+_pow = ops.Pow()
+def raw_pow(x, pow):
+    return executor.real_run_op(_pow, 'Pow', [x, pow])
 
 neg_op = Primitive('Neg')
 def raw_neg(x):
     return executor.real_run_op(neg_op, 'Neg', [x])
+
+_square = Primitive('Square')
+_square.init_prim_io_names(inputs=['input_x'], outputs=['output'])
+def raw_square(x):
+    return executor.real_run_op(_square, 'Square', [x])
+
 
 matmul_op = Primitive('MatMul')
 matmul_op.init_prim_io_names(inputs=['x1', 'x2'], outputs=['output'])
