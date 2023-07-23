@@ -5,6 +5,7 @@ from mindspore._c_expression import TensorNode
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 
 from mindtorch import BACKEND
+from mindtorch.config import using_config
 
 from .utils import slice_helper, ASCEND_DTYPE_MAP
 
@@ -112,22 +113,23 @@ class Tensor:
         while funcs:
             f = funcs.pop()
             gys = [output().grad for output in f.outputs]  # output is weakref
-            gxs = f.run_backward(*gys)
-            if not isinstance(gxs, tuple):
-                gxs = (gxs,)
+            with using_config('enable_backprop', create_graph):
+                gxs = f.backward(*gys)
+                if not isinstance(gxs, tuple):
+                    gxs = (gxs,)
 
-            for x, gx in zip(f.inputs, gxs):
-                if x.grad is None:
-                    x.grad = gx
-                else:
-                    x.grad = x.grad + gx
+                for x, gx in zip(f.inputs, gxs):
+                    if x.grad is None:
+                        x.grad = gx
+                    else:
+                        x.grad = x.grad + gx
 
-                if x.creator is not None:
-                    add_func(x.creator)
+                    if x.creator is not None:
+                        add_func(x.creator)
 
-            if not retain_graph:
-                for y in f.outputs:
-                    y().grad = None  # y is weakref
+                if not retain_graph:
+                    for y in f.outputs:
+                        y().grad = None  # y is weakref
 
 
     def tolist(self):

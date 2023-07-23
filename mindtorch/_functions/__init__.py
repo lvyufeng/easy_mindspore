@@ -15,8 +15,8 @@ class Square(Function):
         return y
 
     def backward(self, gy):
-        x = self.inputs[0].data
-        gx = raw_mul(2, raw_mul(x, gy))
+        x, = self.inputs
+        gx = 2 * x * gy
         return gx
 
 def square(x):
@@ -41,8 +41,8 @@ class Mul(Function):
         return y
 
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
-        return raw_mul(gy, x1), raw_mul(gy, x0)
+        x0, x1 = self.inputs
+        return gy * x1, gy * x0
 
 
 def mul(x0, x1):
@@ -54,7 +54,7 @@ class Neg(Function):
         return raw_neg(x)
 
     def backward(self, gy):
-        return raw_neg(gy)
+        return -gy
 
 
 def neg(x):
@@ -67,7 +67,7 @@ class Sub(Function):
         return y
 
     def backward(self, gy):
-        return gy, raw_neg(gy)
+        return gy, -gy
 
 
 def sub(x0, x1):
@@ -86,9 +86,9 @@ class Div(Function):
         return y
 
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
-        gx0 = raw_div(gy, x1)
-        gx1 = raw_mul(gy, raw_pow(neg(raw_div(x0, x1)), 2))
+        x0, x1 = self.inputs
+        gx0 = gy / x1
+        gx1 = gy * (-x0 / x1 ** 2)
         return gx0, gx1
 
 
@@ -111,10 +111,10 @@ class Pow(Function):
         return y
 
     def backward(self, gy):
-        x = self.inputs[0].data
+        x, = self.inputs
         c = self.c
 
-        gx = raw_mul(raw_mul(c, raw_pow(x, (c - 1))), gy)
+        gx = c * x ** (c - 1) * gy
         return gx
 
 

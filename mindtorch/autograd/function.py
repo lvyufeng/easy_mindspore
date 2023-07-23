@@ -20,15 +20,6 @@ class Function:
 
         return outputs if len(outputs) > 1 else outputs[0]
 
-    def run_backward(self, *inputs):
-        gys = [x.data for x in inputs]
-        gxs = self.backward(*gys)
-        if not isinstance(gxs, tuple):
-            gxs = (gxs,)
-        outputs = [Tensor(gx) for gx in gxs]
-
-        return tuple(outputs) if len(outputs) > 1 else outputs[0]
-
     def forward(self, xs):
         raise NotImplementedError()
 
