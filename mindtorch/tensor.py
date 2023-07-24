@@ -78,15 +78,18 @@ class Tensor:
     def dtype(self):
         return self.data.dtype
 
+    @property
+    def grad_fn(self):
+        return self.creator
+
     def __len__(self):
         return len(self.data)
 
     def __repr__(self):
         if self.data is None:
             return 'Tensor(None)'
-        self.data.data_sync(True)
-        p = str(self.data).replace('\n', '\n' + ' ' * 9)
-        return p
+        p = str(self.data.asnumpy()).replace('\n', '\n' + ' ' * 9)
+        return f'Tensor({p})'
 
     def set_creator(self, func):
         self.creator = func
@@ -153,6 +156,9 @@ class Tensor:
 
     def sum(self, axis=None, keepdims=False):
         return mindtorch._functions.sum(self, axis, keepdims)
+
+    def cuda(self):
+        return self
 
     def __iadd__(self, other) -> 'Tensor':
         """

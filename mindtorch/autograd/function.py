@@ -13,7 +13,8 @@ class Function:
         if Config.enable_backprop:
             self.generation = max([x.generation for x in inputs])
             for output in outputs:
-                output.set_creator(self)
+                if output.requires_grad:
+                    output.set_creator(self)
             self.inputs = inputs
             self.outputs = [weakref.ref(output) for output in outputs]
 

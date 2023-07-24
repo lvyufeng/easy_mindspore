@@ -23,3 +23,6 @@ class Module:
     def __call__(self, *input, **kwargs):
         result = self.forward(*input, **kwargs)
         return result
+    
+    def cuda(self):
+        return self

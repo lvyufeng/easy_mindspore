@@ -5,17 +5,16 @@ sys.path.append('./')
 from mindtorch import Tensor
 from mindtorch.nn import Parameter, Module
 from mindtorch.optim import SGD
-from torch import Tensor
-from torch.nn import Parameter, Module
-from torch.optim import SGD
+# from torch import Tensor
+# from torch.nn import Parameter, Module
+# from torch.optim import SGD
 
-x_data = Tensor(np.random.randn(100, 1024))
-coef = Tensor(np.random.randn(1024, 2048))
+x_data = Tensor(np.random.randn(100, 1024)).cuda()
+coef = Tensor(np.random.randn(1024, 2048)).cuda()
 # x_data = Tensor(np.random.randn(100, 3))
 # coef = Tensor(np.array([-1., +3., -2.]))
 # coef = Tensor(np.array([[-1.], [+3.], [-2.]]))
 y_data = x_data @ coef + 5.
-
 
 class Model(Module):
     def __init__(self) -> None:
@@ -30,7 +29,7 @@ class Model(Module):
         return inputs @ self.w + self.b
 
 batch_size = 32
-model = Model()
+model = Model().cuda()
 optimizer = SGD(model.parameters(), 0.001)
 
 for epoch in range(100):
@@ -40,7 +39,6 @@ for epoch in range(100):
     for start in range(0, 100, batch_size):
         end = start + batch_size
         optimizer.zero_grad()
-        # print(model.b.grad)
         inputs = x_data[start:end]
         actual = y_data[start:end]
         # TODO: implement batching
@@ -52,7 +50,6 @@ for epoch in range(100):
 
         loss.backward()
         epoch_loss += loss
-        # print(model.b.grad.numpy()[:10])
 
         optimizer.step()
     t = time.time()
