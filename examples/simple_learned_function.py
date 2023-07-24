@@ -40,6 +40,7 @@ for epoch in range(100):
     for start in range(0, 100, batch_size):
         end = start + batch_size
         optimizer.zero_grad()
+        # print(model.b.grad)
         inputs = x_data[start:end]
         actual = y_data[start:end]
         # TODO: implement batching
@@ -51,6 +52,7 @@ for epoch in range(100):
 
         loss.backward()
         epoch_loss += loss
+        # print(model.b.grad.numpy()[:10])
 
         optimizer.step()
     t = time.time()

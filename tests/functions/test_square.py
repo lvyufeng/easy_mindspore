@@ -17,19 +17,19 @@ class SquareTest(unittest.TestCase):
         x = Tensor(np.array(2.0), requires_grad=True)
         y = square(x)
         expected = np.array(4.0)
-        self.assertEqual(y.data.asnumpy(), expected)
+        self.assertEqual(y.numpy(), expected)
 
     def test_backward(self):
         x = Tensor(np.array(3.0), requires_grad=True)
         y = square(x)
         y.backward(Tensor(np.ones(x.shape)))
         expected = np.array(6.0)
-        self.assertEqual(x.grad.asnumpy(), expected)
+        self.assertEqual(x.grad.numpy(), expected)
 
     def test_gradient_check(self):
         x = Tensor(np.random.rand(1), requires_grad=True)
         y = square(x)
         y.backward(Tensor(np.ones(x.shape)))
         num_grad = numerical_diff(square, x)
-        flg = np.allclose(x.grad.asnumpy(), num_grad.asnumpy())
+        flg = np.allclose(x.grad.numpy(), num_grad.asnumpy())
         self.assertTrue(flg)

@@ -10,7 +10,6 @@ class Function:
         if not isinstance(ys, tuple):
             ys = (ys,)
         outputs = [Tensor(y, requires_grad) for y in ys]
-
         if Config.enable_backprop:
             self.generation = max([x.generation for x in inputs])
             for output in outputs:

@@ -4,14 +4,14 @@ from mindspore.common.api import _pynative_executor as executor
 from mindtorch import BACKEND
 from .array_ops import raw_squeeze, raw_unsqueeze
 
-sum_op = Primitive('ReduceSum')
-sum_op.init_prim_io_names(inputs=['input_x', 'axis'], outputs=['y'])
-sum_op.add_prim_attr('skip_mode', False)
+_sum = Primitive('ReduceSum')
+_sum.init_prim_io_names(inputs=['input_x', 'axis'], outputs=['y'])
+_sum.add_prim_attr('skip_mode', False)
 def raw_sum(x, axis=None, keepdims=False):
-    sum_op.add_prim_attr('keep_dims', keepdims)
+    _sum.add_prim_attr('keep_dims', keepdims)
     if axis is None:
         axis = ()
-    return executor.real_run_op(sum_op, 'ReduceSum', [x, axis])
+    return executor.real_run_op(_sum, 'ReduceSum', [x, axis])
 
 _add = ops.Add()
 def raw_add(x, y):
@@ -32,6 +32,26 @@ def raw_div(x, y):
 _pow = ops.Pow()
 def raw_pow(x, pow):
     return executor.real_run_op(_pow, 'Pow', [x, pow])
+
+_sin = ops.Sin()
+def raw_sin(x):
+    return executor.real_run_op(_sin, 'Sin', [x])
+
+_cos = ops.Cos()
+def raw_cos(x):
+    return executor.real_run_op(_cos, 'Cos', [x])
+
+_tanh = ops.Tanh()
+def raw_tanh(x):
+    return executor.real_run_op(_tanh, 'Tanh', [x])
+
+_exp = ops.Exp()
+def raw_exp(x):
+    return executor.real_run_op(_exp, 'Exp', [x])
+
+_log = ops.Log()
+def raw_log(x):
+    return executor.real_run_op(_log, 'Log', [x])
 
 neg_op = Primitive('Neg')
 def raw_neg(x):
@@ -80,9 +100,9 @@ def raw_strided_slice(x, begin, end, strides, begin_mask=0, end_mask=0, ellipsis
 stridedslice_grad_op = Primitive('StridedSliceGrad')
 stridedslice_grad_op.init_prim_io_names(inputs=['dy', 'shapex', 'begin', 'end', 'strides'], outputs=['output'])
 def raw_strided_slice_grad(dout, x_shape, begin, end, strides, begin_mask=0, end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=0):
-    stridedslice_op.add_prim_attr('begin_mask', begin_mask)
-    stridedslice_op.add_prim_attr('end_mask', end_mask)
-    stridedslice_op.add_prim_attr('ellipsis_mask', ellipsis_mask)
-    stridedslice_op.add_prim_attr('new_axis_mask', new_axis_mask)
-    stridedslice_op.add_prim_attr('shrink_axis_mask', shrink_axis_mask)
-    return executor.real_run_op(stridedslice_op, "StridedSliceGrad", (dout, x_shape, begin, end, strides))
+    stridedslice_grad_op.add_prim_attr('begin_mask', begin_mask)
+    stridedslice_grad_op.add_prim_attr('end_mask', end_mask)
+    stridedslice_grad_op.add_prim_attr('ellipsis_mask', ellipsis_mask)
+    stridedslice_grad_op.add_prim_attr('new_axis_mask', new_axis_mask)
+    stridedslice_grad_op.add_prim_attr('shrink_axis_mask', shrink_axis_mask)
+    return executor.real_run_op(stridedslice_grad_op, "StridedSliceGrad", (dout, x_shape, begin, end, strides))

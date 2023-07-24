@@ -4,10 +4,11 @@ from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import TensorNode
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 
+import mindtorch
 from mindtorch import BACKEND
 from mindtorch.config import using_config
 
-from .utils import slice_helper, ASCEND_DTYPE_MAP
+from .utils import ASCEND_DTYPE_MAP
 
 class Dependency(NamedTuple):
     tensor: 'Tensor'
@@ -19,7 +20,7 @@ Arrayable = Union[float, list, int, Array]
 def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Tensor):
         return arrayable.data
-    if isinstance(arrayable, (Array, TensorNode)):
+    if isinstance(arrayable, Array):
         return arrayable
     if dtype is None:
         if BACKEND == 'Ascend':
@@ -38,6 +39,13 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
         return Array(arrayable)
     return Array(arrayable, dtype)
 
+Tensorable = Union['Tensor', float, np.ndarray]
+
+def ensure_tensor(tensorable: Tensorable) -> 'Tensor':
+    if isinstance(tensorable, Tensor):
+        return tensorable
+    else:
+        return Tensor(tensorable)
 
 class Tensor:
     """mindtorch defined Tensor."""
@@ -56,11 +64,11 @@ class Tensor:
 
     @property
     def shape(self):
-        return self.data.shape
+        return self.data._shape
 
     @property
     def ndim(self):
-        return self.data.ndim
+        return self.data.dim
 
     @property
     def size(self):
@@ -91,7 +99,7 @@ class Tensor:
         assert self.requires_grad, "called backward on non-requires-grad tensor"
 
         if gradient is None:
-            if self.shape == []:
+            if self.shape == ():
                 gradient = Tensor(1, dtype=self.dtype)
             else:
                 raise RuntimeError("grad must specified for non-0-tensor")
@@ -135,11 +143,41 @@ class Tensor:
     def tolist(self):
         return self.data.asnumpy().tolist()
 
-    def asnumpy(self):
+    def numpy(self):
         return self.data.asnumpy()
 
+    def reshape(self, *shape):
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]
+        return mindtorch._functions.reshape(self, shape)
+
+    def sum(self, axis=None, keepdims=False):
+        return mindtorch._functions.sum(self, axis, keepdims)
+
+    def __iadd__(self, other) -> 'Tensor':
+        """
+        when we do t += other
+        """
+        self.data = mindtorch._operations.raw_add(self.data, ensure_tensor(other).data)
+        # Invalidate the gradient
+        self.grad = None
+        return self
+
+    def __isub__(self, other) -> 'Tensor':
+        self.data = mindtorch._operations.raw_sub(self.data, ensure_tensor(other).data)
+        # Invalidate the gradient
+        self.grad = None
+        return self
+
+    def __imul__(self, other) -> 'Tensor':
+        self.data = mindtorch._operations.raw_mul(self.data, ensure_tensor(other).data)
+        # Invalidate the gradient
+        self.grad = None
+        return self
+
 def setup_tensor():
-    from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow
+    from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
+        matmul, get_item
     Tensor.__add__ = add
     Tensor.__radd__ = add
     Tensor.__mul__ = mul
@@ -150,3 +188,5 @@ def setup_tensor():
     Tensor.__truediv__ = div
     Tensor.__rtruediv__ = rdiv
     Tensor.__pow__ = pow
+    Tensor.__matmul__ = matmul
+    Tensor.__getitem__ = get_item
