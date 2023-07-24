@@ -5,7 +5,7 @@ from mindtorch.config import Config
 class Function:
     def __call__(self, *inputs):
         xs = [x.data for x in inputs]
-        requires_grad = all([x.requires_grad for x in inputs]) and Config.enable_backprop
+        requires_grad = any([x.requires_grad for x in inputs]) and Config.enable_backprop
         ys = self.forward(*xs)
         if not isinstance(ys, tuple):
             ys = (ys,)

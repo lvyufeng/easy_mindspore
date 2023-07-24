@@ -76,7 +76,7 @@ class Tensor:
     def __repr__(self):
         if self.data is None:
             return 'Tensor(None)'
-        self.data.data_sync(False)
+        self.data.data_sync(True)
         p = str(self.data).replace('\n', '\n' + ' ' * 9)
         return p
 
