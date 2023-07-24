@@ -10,11 +10,10 @@ class Function:
         if not isinstance(ys, tuple):
             ys = (ys,)
         outputs = [Tensor(y, requires_grad) for y in ys]
-        if Config.enable_backprop:
+        if requires_grad:
             self.generation = max([x.generation for x in inputs])
             for output in outputs:
-                if output.requires_grad:
-                    output.set_creator(self)
+                output.set_creator(self)
             self.inputs = inputs
             self.outputs = [weakref.ref(output) for output in outputs]
 
