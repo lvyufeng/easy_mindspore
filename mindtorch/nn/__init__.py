@@ -1,2 +1,2 @@
-from .modules import Module
+from .modules import *
 from .parameter import Parameter

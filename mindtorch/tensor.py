@@ -68,11 +68,12 @@ class Tensor:
 
     @property
     def ndim(self):
-        return self.data.dim
+        return self.data.dim()
 
-    @property
-    def size(self):
-        return self.data.size
+    def size(self, dim=None):
+        if dim is None:
+            return self.shape
+        return self.shape[dim]
 
     @property
     def dtype(self):
@@ -156,6 +157,12 @@ class Tensor:
 
     def sum(self, axis=None, keepdims=False):
         return mindtorch._functions.sum(self, axis, keepdims)
+
+    def flatten(self, start_dim=0, end_dim=-1):
+        return mindtorch._functions.flatten(self, start_dim, end_dim)
+
+    def unflatten(self, dim, sizes):
+        return mindtorch._functions.unflatten(self, dim, sizes)
 
     def cuda(self):
         return self

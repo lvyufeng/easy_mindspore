@@ -25,6 +25,18 @@ def reshape(x, shape):
     return Reshape(shape)(x)
 
 
+def flatten(x, start_dim=1, end_dim=-1):
+    """Flattens the input. Does not affect the batch size."""
+    if end_dim < 0:
+        end_dim = x.ndim + end_dim
+    new_shape = x.shape[:start_dim] + (-1,) + x.shape[end_dim + 1:]
+    return reshape(x, new_shape)
+
+def unflatten(x, dim, sizes):
+    new_shape = x.shape[:dim] + sizes
+    return reshape(x, new_shape)
+
+
 class Transpose(Function):
     def __init__(self, axes=None):
         self.axes = axes
@@ -49,11 +61,6 @@ def expand_dims(x, axis):
     shape = list(x.shape)
     shape.insert(axis, 1)
     return reshape(x, tuple(shape))
-
-
-def flatten(x):
-    """Flattens the input. Does not affect the batch size."""
-    return reshape(x, (x.shape[0], -1))
 
 # =============================================================================
 # sum / sum_to / broadcast_to / average / matmul / linear

@@ -17,6 +17,14 @@ zeros_like_op.init_prim_io_names(inputs=['x'], outputs=['y'])
 def raw_zeros_like(x, *, dtype=None):
     return executor.real_run_op(zeros_like_op, 'ZerosLike', [x])
 
+_zeros = Primitive('Zeros')
+def raw_zeros(shape, dtype):
+    return executor.real_run_op(_zeros, 'Zeros', [shape, dtype])
+
+_ones = Primitive('Ones')
+def raw_ones(shape, dtype):
+    return executor.real_run_op(_ones, 'Ones', [shape, dtype])
+
 cast_op = Primitive('Cast')
 cast_op.init_prim_io_names(inputs=['x', 'dst_type'], outputs=['output'])
 def raw_cast(x, dtype):
