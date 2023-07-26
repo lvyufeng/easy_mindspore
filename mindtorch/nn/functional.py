@@ -1,4 +1,5 @@
-from ..tensor import Tensor, Dependency
+from .._tensor import Tensor, Dependency
+from mindtorch._functions import linear
 
 def dropout(tensor: Tensor, dropout_ratio:int=0.5, training:bool=True) -> Tensor:
     """

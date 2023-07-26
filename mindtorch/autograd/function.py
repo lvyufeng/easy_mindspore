@@ -14,7 +14,7 @@ class Function:
         ys = self.forward(*xs)
         if not isinstance(ys, tuple):
             ys = (ys,)
-        outputs = [Tensor(y, requires_grad) for y in ys]
+        outputs = [Tensor(y, requires_grad=requires_grad) for y in ys]
 
         if requires_grad: # cut useless nodes
             self.generation = max([x.generation for x in inputs])

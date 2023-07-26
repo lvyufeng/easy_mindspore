@@ -1,7 +1,6 @@
 import numpy as np
 import warnings
 from typing import List, NamedTuple, Callable, Optional, Union
-from mindspore._c_expression import TensorNode
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 
 import mindtorch
@@ -10,12 +9,19 @@ from mindtorch.config import using_config
 
 from .utils import ASCEND_DTYPE_MAP
 
+
+def _uniform(self, a, b):
+    data = np.random.uniform(a, b, self._shape)
+    self.assign_value_cpp(Array.from_numpy(data))
+
+Array.uniform_ = _uniform
+
 class Dependency(NamedTuple):
     tensor: 'Tensor'
     grad_fn: Callable[[Array], Array]
 
 
-Arrayable = Union[float, list, int, Array]
+Arrayable = Union[float, list, int, Array, np.ndarray]
 
 def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Tensor):
@@ -47,16 +53,42 @@ def ensure_tensor(tensorable: Tensorable) -> 'Tensor':
     else:
         return Tensor(tensorable)
 
+def ensure_tuple_int(args):
+    for i in args:
+        if not isinstance(i, int):
+            return False
+    return True
+
+
 class Tensor:
     """mindtorch defined Tensor."""
-
     def __init__(self,
-                 data: Arrayable,
-                 requires_grad: bool = False,
-                 dtype=None
+                 *args,
+                 **kwargs
                  ) -> None:
-        self.data = ensure_array(data, dtype)
-        self.requires_grad = requires_grad
+        dtype = kwargs.get('dtype', mindtorch.float32)
+        # object data
+        if isinstance(args[0], (list, Tensor, Array, np.ndarray)):
+            if len(args) == 1:
+                self.data = ensure_array(args[0], dtype)
+            else:
+                raise ValueError(f'only support one arrayable data as input of Tensor, but got {len(args)}')
+        # tuple of ints size
+        elif isinstance(args[0], tuple):
+            if ensure_tuple_int(args[0]):
+                self.data = Array(shape=args[0], dtype=dtype)
+            else:
+                raise ValueError(f'only support tuple of ints for Tensor size.')
+        elif isinstance(args[0], int):
+            if ensure_tuple_int(args):
+                self.data = Array(shape=args, dtype=dtype)
+            else:
+                raise ValueError(f'only support tuple of ints for Tensor size.')
+        else:
+            raise ValueError(f'only support `tuple of ints size` and `object data`.')
+
+        # Tensor
+        self.requires_grad = kwargs.get('requires_grad', False)
 
         self.grad: Optional['Tensor'] = None
         self.creator = None
@@ -203,3 +235,6 @@ def setup_tensor():
     Tensor.__pow__ = pow
     Tensor.__matmul__ = matmul
     Tensor.__getitem__ = get_item
+
+def tensor(data, dtype=mindtorch.float32, requires_grad=False):
+    return Tensor(data, dtype=dtype, requires_grad=requires_grad)

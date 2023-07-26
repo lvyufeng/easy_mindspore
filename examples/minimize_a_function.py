@@ -4,9 +4,9 @@ to minimize a function, say ** 2
 """
 import sys
 sys.path.append('./')
-from mindtorch.tensor import Tensor
 import torch
-torch.Tensor
+import mindtorch as torch
+
 x = torch.tensor([10., -10., 10., -5., 6., 3., 1.], requires_grad=True)
 
 # we want to minimize the sum of squares

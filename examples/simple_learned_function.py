@@ -5,9 +5,9 @@ sys.path.append('./')
 from mindtorch import Tensor
 from mindtorch.nn import Parameter, Module
 from mindtorch.optim import SGD
-from torch import Tensor
-from torch.nn import Parameter, Module
-from torch.optim import SGD
+# from torch import Tensor
+# from torch.nn import Parameter, Module
+# from torch.optim import SGD
 
 x_data = Tensor(np.random.randn(100, 1024)).cuda()
 coef = Tensor(np.random.randn(1024, 2048)).cuda()

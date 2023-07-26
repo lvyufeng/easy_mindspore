@@ -3,10 +3,9 @@ from mindtorch._operations import raw_ones, raw_ones_like, raw_zeros, raw_zeros_
 from mindtorch.dtype import *
 
 class Ones(Function):
-    def __init__(self, shape, dtype, requires_grad=False):
+    def __init__(self, shape, dtype):
         self.shape = shape
         self.dtype = dtype
-        self.requires_grad = requires_grad
 
     def forward(self):
         y = raw_ones(self.shape, self.dtype)
@@ -42,3 +41,25 @@ def zeros(*shape, dtype=None, requires_grad=False):
         dtype = float32
 
     return Zeros(shape, dtype)(requires_grad=requires_grad)
+
+class OnesLike(Function):
+    def forward(self, x):
+        y = raw_ones_like(x)
+        return y
+
+    def backward(self, gy):
+        return zeros_like(gy)
+
+def ones_like(x, *, dtype=None, requires_grad=False):
+    return OnesLike()(x, requires_grad=requires_grad)
+
+class ZerosLike(Function):
+    def forward(self, x):
+        y = raw_zeros_like(x)
+        return y
+
+    def backward(self, gy):
+        return zeros_like(x, gy)
+
+def zeros_like(x, *, dtype=None, requires_grad=False):
+    return ZerosLike()(x, requires_grad=requires_grad)

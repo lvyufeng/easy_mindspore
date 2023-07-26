@@ -1,5 +1,5 @@
 from .optimizer import Optimizer
-from ..tensor import Tensor
+from .._tensor import Tensor
 
 class RMSprop(Optimizer):
     '''
