@@ -1,4 +1,4 @@
-from mindtorch import Tensor
+from mindtorch import Tensor, tensor
 from mindtorch.autograd import Function
 from mindtorch._operations import raw_mul, raw_square, raw_add, raw_neg, raw_sub, \
     raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log
@@ -8,7 +8,7 @@ def ensure_tensor(tensorable) -> 'Tensor':
     if isinstance(tensorable, Tensor):
         return tensorable
     else:
-        return Tensor(tensorable)
+        return tensor(tensorable)
 
 class Square(Function):
     def forward(self, x):

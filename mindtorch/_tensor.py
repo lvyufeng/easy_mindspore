@@ -7,7 +7,7 @@ import mindtorch
 from mindtorch import BACKEND
 from mindtorch.config import using_config
 
-from .utils import ASCEND_DTYPE_MAP
+from .utils import ASCEND_DTYPE_MAP, NORMAL_DTYPE_MAP
 
 
 def _uniform(self, a, b):
@@ -29,11 +29,18 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Array):
         return arrayable
     if dtype is None:
-        if BACKEND == 'Ascend':
-            if isinstance(arrayable, (list, tuple)):
-                arrayable = np.array(arrayable)
+        if isinstance(arrayable, (list, tuple)):
+            arrayable = np.array(arrayable)
 
-            if isinstance(arrayable, (int, float)):
+        if isinstance(arrayable, float):
+            origin_dtype = type(arrayable)
+            dtype = NORMAL_DTYPE_MAP[origin_dtype]
+        elif isinstance(arrayable, np.ndarray):
+            origin_dtype = str(arrayable.dtype)
+            dtype = NORMAL_DTYPE_MAP.get(origin_dtype, None)
+
+        if BACKEND == 'Ascend':
+            if isinstance(arrayable, int):
                 origin_dtype = type(arrayable)
                 dtype = ASCEND_DTYPE_MAP[origin_dtype]
                 warnings.warn(f'Tensor dtype will auto change from system type {origin_dtype} to tensor dtype {dtype} on Ascend.')
@@ -41,8 +48,7 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
                 origin_dtype = str(arrayable.dtype)
                 dtype = ASCEND_DTYPE_MAP.get(origin_dtype, None)
                 warnings.warn(f'Tensor dtype will auto change from numpy dtype {origin_dtype} to tensor dtype {dtype} on Ascend.')
-            return Array(arrayable, dtype)
-        return Array(arrayable)
+        return Array(arrayable, dtype)
     return Array(arrayable, dtype)
 
 Tensorable = Union['Tensor', float, np.ndarray]
@@ -136,7 +142,7 @@ class Tensor:
 
         if gradient is None:
             if self.shape == ():
-                gradient = Tensor(1, dtype=self.dtype)
+                gradient = tensor(1, dtype=self.dtype)
             else:
                 raise RuntimeError("grad must specified for non-0-tensor")
 
@@ -236,5 +242,5 @@ def setup_tensor():
     Tensor.__matmul__ = matmul
     Tensor.__getitem__ = get_item
 
-def tensor(data, dtype=mindtorch.float32, requires_grad=False):
-    return Tensor(data, dtype=dtype, requires_grad=requires_grad)
+def tensor(data, dtype=None, requires_grad=False):
+    return Tensor(ensure_array(data, dtype), dtype=dtype, requires_grad=requires_grad)

@@ -6,6 +6,7 @@ def test_mul_add():
     b = Tensor(np.array(2.0), requires_grad=True)
     c = Tensor(np.array(1.0), requires_grad=True)
 
+    print(a, b, c)
     # y = add(mul(a, b), c)
     y = a * b + c
     print(y)
