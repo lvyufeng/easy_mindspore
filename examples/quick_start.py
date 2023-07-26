@@ -1,7 +1,7 @@
 import sys
 sys.path.append('./')
 import mindtorch as torch
-from mindtorch import nn
+from mindtorch import nn, optim
 from mindspore.dataset import vision, transforms
 from mindspore.dataset import MnistDataset
 
@@ -49,7 +49,7 @@ class Network(nn.Module):
             nn.Linear(512, 10)
         )
 
-    def construct(self, x):
+    def forward(self, x):
         x = self.flatten(x)
         logits = self.dense_relu_sequential(x)
         return logits
@@ -61,14 +61,16 @@ print(model)
 
 # Instantiate loss function and optimizer
 loss_fn = nn.CrossEntropyLoss()
-optimizer = nn.SGD(model.parameters(), 1e-2)
+optimizer = optim.SGD(model.parameters(), 1e-2)
 
 
 def train(model, dataset):
     size = dataset.get_dataset_size()
-    model.set_train()
-    for batch, (data, label) in enumerate(dataset.create_tuple_iterator()):
+    model.train()
+    for batch, (data, label) in enumerate(dataset.create_tuple_iterator(output_numpy=True)):
         optimizer.zero_grad()
+        data = torch.tensor(data)
+        label = torch.tensor(label)
         logits = model(data)
         loss = loss_fn(logits, label)
         loss.backward()
@@ -86,13 +88,15 @@ def train(model, dataset):
 
 def test(model, dataset, loss_fn):
     num_batches = dataset.get_dataset_size()
-    model.set_train(False)
+    model.eval()
     total, test_loss, correct = 0, 0, 0
-    for data, label in dataset.create_tuple_iterator():
+    for data, label in dataset.create_tuple_iterator(output_numpy=True):
+        data = torch.tensor(data)
+        label = torch.tensor(label)
         pred = model(data)
         total += len(data)
-        test_loss += loss_fn(pred, label).numpy()
-        correct += (pred.argmax(1) == label).numpy().sum()
+        test_loss += loss_fn(pred, label)
+        correct += (pred.argmax(1) == label).sum()
     test_loss /= num_batches
     correct /= total
     print(f"Test: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")

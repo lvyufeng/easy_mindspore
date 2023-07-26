@@ -1,5 +1,14 @@
 from .._tensor import Tensor, Dependency
-from mindtorch._functions import linear
+from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear
+
+def linear(x, W, b=None):
+    return Linear()(x, W, b)
+
+def relu(x):
+    return ReLU()(x)
+
+def softmax_cross_entropy(logits, labels):
+    return SoftmaxCrossEntropy()(logits, labels)
 
 def dropout(tensor: Tensor, dropout_ratio:int=0.5, training:bool=True) -> Tensor:
     """

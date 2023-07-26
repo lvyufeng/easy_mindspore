@@ -11,8 +11,10 @@ from .utils import ASCEND_DTYPE_MAP, NORMAL_DTYPE_MAP
 
 
 def _uniform(self, a, b):
+    dtype = self.dtype
     data = np.random.uniform(a, b, self._shape)
     self.assign_value_cpp(Array.from_numpy(data))
+    self.set_dtype(dtype)
 
 Array.uniform_ = _uniform
 
@@ -101,6 +103,10 @@ class Tensor:
         self.generation = 0
 
     @property
+    def T(self):
+        return mindtorch._functions.transpose(self)
+
+    @property
     def shape(self):
         return self.data._shape
 
@@ -122,7 +128,9 @@ class Tensor:
         return self.creator
 
     def __len__(self):
-        return len(self.data)
+        if self.shape == ():
+            return 1
+        return self.shape[0]
 
     def __repr__(self):
         if self.data is None:

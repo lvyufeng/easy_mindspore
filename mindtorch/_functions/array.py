@@ -55,6 +55,8 @@ class Transpose(Function):
 
 
 def transpose(x, axes=None):
+    if axes is None:
+        axes = (1, 0)
     return Transpose(axes)(x)
 
 def expand_dims(x, axis):
@@ -146,7 +148,7 @@ def matmul(x, w, transpose_a=False, transpose_b=False):
 
 class Linear(Function):
     def forward(self, x, W, b):
-        y = raw_matmul(x, W)
+        y = raw_matmul(x, W, transpose_b=True)
         if b is not None:
             y = raw_add(y, b)
         return y
@@ -154,13 +156,9 @@ class Linear(Function):
     def backward(self, gy):
         x, W, b = self.inputs
         gb = None if b.data is None else sum_to(gy, b.shape)
-        gx = matmul(gy, W, transpose_b=True)
+        gx = matmul(gy, W)
         gW = matmul(x, gy, transpose_a=True)
-        return gx, gW, gb
-
-
-def linear(x, W, b=None):
-    return Linear()(x, W, b)
+        return gx, gW.T, gb
 
 
 def linear_simple(x, W, b=None):
