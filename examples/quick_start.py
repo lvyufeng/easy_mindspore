@@ -24,7 +24,7 @@ def datapipe(dataset, batch_size):
         vision.Normalize(mean=(0.1307,), std=(0.3081,)),
         vision.HWC2CHW()
     ]
-    label_transform = transforms.TypeCast(torch.int32)
+    label_transform = transforms.TypeCast(torch.int64)
 
     dataset = dataset.map(image_transforms, 'image')
     dataset = dataset.map(label_transform, 'label')
@@ -35,6 +35,9 @@ def datapipe(dataset, batch_size):
 train_dataset = datapipe(train_dataset, 64)
 test_dataset = datapipe(test_dataset, 64)
 
+
+# import torch
+# from torch import nn, optim
 # ## 网络构建
 # Define model
 class Network(nn.Module):
@@ -67,19 +70,21 @@ optimizer = optim.SGD(model.parameters(), 1e-2)
 def train(model, dataset):
     size = dataset.get_dataset_size()
     model.train()
+    import time
     for batch, (data, label) in enumerate(dataset.create_tuple_iterator(output_numpy=True)):
         optimizer.zero_grad()
         data = torch.tensor(data)
         label = torch.tensor(label)
+        s = time.time()
         logits = model(data)
         loss = loss_fn(logits, label)
         loss.backward()
         optimizer.step()
-
+        t = time.time()
         if batch % 100 == 0:
-            loss, current = loss.numpy(), batch
+            loss, current = loss.detach().numpy(), batch
             print(f"loss: {loss:>7f}  [{current:>3d}/{size:>3d}]")
-
+            print(t - s)
 
 # 除训练外，我们定义测试函数，用来评估模型的性能。
 
@@ -111,55 +116,5 @@ epochs = 3
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(model, train_dataset)
-    test(model, test_dataset, loss_fn)
+    # test(model, test_dataset, loss_fn)
 print("Done!")
-
-
-# 更多细节详见[模型训练](https://www.mindspore.cn/tutorials/zh-CN/r2.0/beginner/train.html)。
-
-# ## 保存模型
-# 
-# 模型训练完成后，需要将其参数进行保存。
-
-# In[14]:
-
-
-# Save checkpoint
-mindspore.save_checkpoint(model, "model.ckpt")
-print("Saved Model to model.ckpt")
-
-
-# ## 加载模型
-
-# 加载保存的权重分为两步：
-# 
-# 1. 重新实例化模型对象，构造模型。
-# 2. 加载模型参数，并将其加载至模型上。
-
-# In[15]:
-
-
-# Instantiate a random initialized model
-model = Network()
-# Load checkpoint and load parameter to model
-param_dict = mindspore.load_checkpoint("model.ckpt")
-param_not_load, _ = mindspore.load_param_into_net(model, param_dict)
-print(param_not_load)
-
-
-# > `param_not_load`是未被加载的参数列表，为空时代表所有参数均加载成功。
-
-# 加载后的模型可以直接用于预测推理。
-
-# In[16]:
-
-
-model.set_train(False)
-for data, label in test_dataset:
-    pred = model(data)
-    predicted = pred.argmax(1)
-    print(f'Predicted: "{predicted[:10]}", Actual: "{label[:10]}"')
-    break
-
-
-# 更多细节详见[保存与加载](https://www.mindspore.cn/tutorials/zh-CN/r2.0/beginner/save_load.html)。

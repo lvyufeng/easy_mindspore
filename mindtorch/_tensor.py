@@ -213,6 +213,9 @@ class Tensor:
     def cuda(self):
         return self
 
+    def detach(self):
+        return self
+
     def __iadd__(self, other) -> 'Tensor':
         """
         when we do t += other
