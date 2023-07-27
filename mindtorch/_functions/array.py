@@ -1,8 +1,9 @@
 from mindtorch.autograd import Function
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
-    raw_matmul, raw_add, raw_strided_slice, raw_strided_slice_grad
+    raw_matmul, raw_add, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
+    raw_cast
 from mindtorch._functions import utils
-
+from mindtorch import dtype
 # =============================================================================
 # Tensor operations: reshape / transpose / expand_dims / flatten
 # =============================================================================
@@ -84,6 +85,8 @@ class Sum(Function):
         return gx
 
 def sum(x, axis=None, keepdims=False):
+    if x.dtype == dtype.bool:
+        x = x.long()
     return Sum(axis, keepdims)(x)
 
 def mean(x, axis=None, keepdims=False):
@@ -206,3 +209,34 @@ class GetItemGrad(Function):
 def get_item(x, slices):
     f = GetItem(slices)
     return f(x)
+
+class Argmax(Function):
+    def __init__(self, axis):
+        self.axis = axis
+
+    def forward(self, x):
+        y = raw_argmax(x, self.axis)
+        return y
+
+def argmax(x, axis):
+    return Argmax(axis)(x, requires_grad=False)
+
+class Equal(Function):
+    def forward(self, x, y):
+        return raw_equal(x, y)
+
+def equal(x, y):
+    return Equal()(x, y, reqiures_grad=False)
+
+class Cast(Function):
+    def __init__(self, dtype):
+        self.dtype = dtype
+
+    def forward(self, x):
+        return raw_cast(x, self.dtype)
+    
+    def backward(self, gy):
+        return cast(gy, self.dtype)
+
+def cast(x, dtype):
+    return Cast(dtype)(x)

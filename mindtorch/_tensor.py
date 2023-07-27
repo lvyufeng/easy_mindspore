@@ -6,7 +6,7 @@ from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 import mindtorch
 from mindtorch import BACKEND
 from mindtorch.config import using_config
-
+from mindtorch import dtype
 from .utils import ASCEND_DTYPE_MAP, NORMAL_DTYPE_MAP
 
 
@@ -59,7 +59,7 @@ def ensure_tensor(tensorable: Tensorable) -> 'Tensor':
     if isinstance(tensorable, Tensor):
         return tensorable
     else:
-        return Tensor(tensorable)
+        return tensor(tensorable)
 
 def ensure_tuple_int(args):
     for i in args:
@@ -213,7 +213,13 @@ class Tensor:
     def unflatten(self, dim, sizes):
         return mindtorch._functions.unflatten(self, dim, sizes)
 
+    def argmax(self, axis=None):
+        return mindtorch._functions.argmax(self, axis)
+
     def cuda(self):
+        return self
+
+    def cpu(self):
         return self
 
     def detach(self):
@@ -240,9 +246,34 @@ class Tensor:
         self.grad = None
         return self
 
+    def __itruediv__(self, other) -> 'Tensor':
+        self.data = mindtorch._operations.raw_div(self.float().data, ensure_tensor(other).data)
+        # Invalidate the gradient
+        self.grad = None
+        return self
+
+    def __format__(self, format_spec):
+        return np.ndarray.__format__(self.numpy(), format_spec)
+
+    def float(self):
+        return mindtorch._functions.cast(self, dtype.float)
+
+    def double(self):
+        return mindtorch._functions.cast(self, dtype.double)
+    
+    def int(self):
+        return mindtorch._functions.cast(self, dtype.int)
+
+    def long(self):
+        return mindtorch._functions.cast(self, dtype.long)
+
+    def bool(self):
+        return mindtorch._functions.cast(self, dtype.bool)
+
+
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
-        matmul, get_item
+        matmul, get_item, equal
     Tensor.__add__ = add
     Tensor.__radd__ = add
     Tensor.__mul__ = mul
@@ -255,6 +286,8 @@ def setup_tensor():
     Tensor.__pow__ = pow
     Tensor.__matmul__ = matmul
     Tensor.__getitem__ = get_item
+    Tensor.__eq__ = equal
 
 def tensor(data, dtype=None, requires_grad=False):
     return Tensor(ensure_array(data, dtype), dtype=dtype, requires_grad=requires_grad)
+

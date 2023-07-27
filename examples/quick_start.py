@@ -12,7 +12,7 @@ from download import download
 
 url = "https://mindspore-website.obs.cn-north-4.myhuaweicloud.com/" \
       "notebook/datasets/MNIST_Data.zip"
-path = download(url, "./", kind="zip", replace=True)
+path = download(url, "./", kind="zip", replace=False)
 
 
 train_dataset = MnistDataset('MNIST_Data/train')
@@ -57,13 +57,13 @@ class Network(nn.Module):
         logits = self.dense_relu_sequential(x)
         return logits
 
-model = Network()
+model = Network().cuda()
 print(model)
 
 # ## 模型训练
 
 # Instantiate loss function and optimizer
-loss_fn = nn.CrossEntropyLoss()
+loss_fn = nn.CrossEntropyLoss().cuda()
 optimizer = optim.SGD(model.parameters(), 1e-2)
 
 
@@ -73,8 +73,8 @@ def train(model, dataset):
     import time
     for batch, (data, label) in enumerate(dataset.create_tuple_iterator(output_numpy=True)):
         optimizer.zero_grad()
-        data = torch.tensor(data)
-        label = torch.tensor(label)
+        data = torch.tensor(data).cuda()
+        label = torch.tensor(label).cuda()
         s = time.time()
         logits = model(data)
         loss = loss_fn(logits, label)
@@ -82,7 +82,7 @@ def train(model, dataset):
         optimizer.step()
         t = time.time()
         if batch % 100 == 0:
-            loss, current = loss.detach().numpy(), batch
+            loss, current = loss.detach().cpu().numpy(), batch
             print(f"loss: {loss:>7f}  [{current:>3d}/{size:>3d}]")
             print(t - s)
 
@@ -116,5 +116,5 @@ epochs = 3
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(model, train_dataset)
-    # test(model, test_dataset, loss_fn)
+    test(model, test_dataset, loss_fn)
 print("Done!")

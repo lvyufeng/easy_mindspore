@@ -2,6 +2,8 @@ from mindspore import ops
 from mindspore.ops import Primitive
 from mindspore.common.api import _pynative_executor as executor
 
+from mindtorch.dtype import int64
+
 tile_op = Primitive('Tile')
 tile_op.init_prim_io_names(inputs=['x', 'multiples'], outputs=['output'])
 def raw_tile(x, multiples):
@@ -55,3 +57,21 @@ _broadcast_to = Primitive('BroadcastTo')
 def raw_broadcast_to(x, shape):
     _broadcast_to.add_prim_attr("shape", shape)
     return executor.real_run_op(_broadcast_to, "BroadcastTo", (x,))
+
+_argmax = Primitive('Argmax')
+_argmax.init_prim_io_names(inputs=['x'], outputs=['output'])
+_argmax.add_prim_attr('output_type', int64)
+def raw_argmax(x, axis):
+    _argmax.add_prim_attr('axis', axis)
+    return executor.real_run_op(_argmax, "Argmax", (x,))
+
+_equal = Primitive('Equal')
+_equal.init_prim_io_names(inputs=['x', 'y'], outputs=['output'])
+def raw_equal(x, y):
+    return executor.real_run_op(_equal, "Equal", (x, y))
+
+_cast = Primitive('Cast')
+_cast.init_prim_io_names(inputs=['x', 'dst_type'], outputs=['output'])
+def raw_cast(x, dtype):
+    return executor.real_run_op(_cast, "Cast", (x, dtype))
+
