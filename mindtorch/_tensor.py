@@ -204,6 +204,9 @@ class Tensor:
     def sum(self, axis=None, keepdims=False):
         return mindtorch._functions.sum(self, axis, keepdims)
 
+    def mean(self, axis=None, keepdims=False):
+        return mindtorch._functions.mean(self, axis, keepdims)
+
     def flatten(self, start_dim=0, end_dim=-1):
         return mindtorch._functions.flatten(self, start_dim, end_dim)
 

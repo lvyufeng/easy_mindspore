@@ -86,6 +86,10 @@ class Sum(Function):
 def sum(x, axis=None, keepdims=False):
     return Sum(axis, keepdims)(x)
 
+def mean(x, axis=None, keepdims=False):
+    y = sum(x, axis, keepdims)
+    return y * (y.data._size / x.data._size)
+
 class SumTo(Function):
     def __init__(self, shape):
         self.shape = shape
