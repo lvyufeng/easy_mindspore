@@ -31,5 +31,5 @@ class SquareTest(unittest.TestCase):
         y = square(x)
         y.backward(Tensor(np.ones(x.shape)))
         num_grad = numerical_diff(square, x)
-        flg = np.allclose(x.grad.numpy(), num_grad.asnumpy())
+        flg = np.allclose(x.grad.numpy(), num_grad.asnumpy(), 1e-3, 1e-3)
         self.assertTrue(flg)

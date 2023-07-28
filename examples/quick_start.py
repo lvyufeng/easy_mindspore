@@ -1,4 +1,5 @@
 import sys
+import time
 sys.path.append('./')
 import mindtorch as torch
 from mindtorch import nn, optim
@@ -70,17 +71,16 @@ optimizer = optim.SGD(model.parameters(), 1e-2)
 def train(model, dataset):
     size = dataset.get_dataset_size()
     model.train()
-    import time
     for batch, (data, label) in enumerate(dataset.create_tuple_iterator(output_numpy=True)):
-        optimizer.zero_grad()
         data = torch.tensor(data).cuda()
         label = torch.tensor(label).cuda()
         s = time.time()
+        optimizer.zero_grad()
         logits = model(data)
         loss = loss_fn(logits, label)
         loss.backward()
-        optimizer.step()
         t = time.time()
+        optimizer.step()
         if batch % 100 == 0:
             loss, current = loss.detach().cpu().numpy(), batch
             print(f"loss: {loss:>7f}  [{current:>3d}/{size:>3d}]")
@@ -96,14 +96,14 @@ def test(model, dataset, loss_fn):
     model.eval()
     total, test_loss, correct = 0, 0, 0
     for data, label in dataset.create_tuple_iterator(output_numpy=True):
-        data = torch.tensor(data)
-        label = torch.tensor(label)
+        data = torch.tensor(data).cuda()
+        label = torch.tensor(label).cuda()
         pred = model(data)
         total += len(data)
         test_loss += loss_fn(pred, label)
         correct += (pred.argmax(1) == label).sum()
     test_loss /= num_batches
-    correct /= total
+    correct = correct / total
     print(f"Test: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
@@ -111,10 +111,16 @@ def test(model, dataset, loss_fn):
 
 # In[13]:
 
+import cProfile
+
+cProfile.run('train(model, train_dataset)')
 
 epochs = 3
+start = time.time()
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(model, train_dataset)
     test(model, test_dataset, loss_fn)
 print("Done!")
+end = time.time()
+print('total: ', end - start)

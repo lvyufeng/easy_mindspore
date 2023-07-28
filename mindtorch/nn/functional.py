@@ -3,16 +3,16 @@ from .._tensor import Tensor, Dependency
 from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend
 
 def linear(x, W, b=None):
-    return Linear()(x, W, b)
+    return Linear.apply(x, W, b)
 
 def relu(x):
-    return ReLU()(x)
+    return ReLU.apply(x)
 
 def softmax_cross_entropy(logits, labels):
     if BACKEND == 'Ascend':
-        outputs = SoftmaxCrossEntropyAscend()(logits, labels)
+        outputs = SoftmaxCrossEntropyAscend.apply(logits, labels)
         return outputs.mean()
-    return SoftmaxCrossEntropy()(logits, labels)
+    return SoftmaxCrossEntropy.apply(logits, labels)
 
 def dropout(tensor: Tensor, dropout_ratio:int=0.5, training:bool=True) -> Tensor:
     """

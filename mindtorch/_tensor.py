@@ -2,13 +2,13 @@ import numpy as np
 import warnings
 from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
+from mindspore.common.api import _pynative_executor as executor
 
 import mindtorch
 from mindtorch import BACKEND
 from mindtorch.config import using_config
 from mindtorch import dtype
 from .utils import ASCEND_DTYPE_MAP, NORMAL_DTYPE_MAP
-
 
 def _uniform(self, a, b):
     dtype = self.dtype
@@ -159,7 +159,6 @@ class Tensor:
 
         funcs = []
         seen_set = set()
-
         def add_func(f):
             if f not in seen_set:
                 funcs.append(f)
@@ -170,13 +169,13 @@ class Tensor:
 
         while funcs:
             f = funcs.pop()
-            gys = [output().grad for output in f.outputs]  # output is weakref
+            gys = [output().grad for output in f.ctx.outputs]  # output is weakref
             with using_config('enable_backprop', create_graph):
-                gxs = f.backward(*gys)
+                gxs = f.last_fn._backward(f.ctx, *gys)
                 if not isinstance(gxs, tuple):
                     gxs = (gxs,)
 
-                for x, gx in zip(f.inputs, gxs):
+                for x, gx in zip(f.ctx.inputs, gxs):
                     if x.grad is None:
                         x.grad = gx
                     else:
@@ -184,11 +183,9 @@ class Tensor:
 
                     if x.creator is not None:
                         add_func(x.creator)
-
                 if not retain_graph:
-                    for y in f.outputs:
+                    for y in f.ctx.outputs:
                         y().grad = None  # y is weakref
-
 
     def tolist(self):
         return self.data.asnumpy().tolist()

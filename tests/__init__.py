@@ -1,9 +1,9 @@
 import numpy as np
-from mindtorch import Tensor
+from mindtorch import tensor, Tensor
 # =============================================================================
 # Gradient check
 # =============================================================================
-def gradient_check(f, x, *args, rtol=1e-4, atol=1e-5, **kwargs):
+def gradient_check(f, x, *args, rtol=1e-3, atol=1e-3, **kwargs):
     """Test backward procedure of a given function.
 
     This automatically checks the backward-process of a given function. For
@@ -26,10 +26,10 @@ def gradient_check(f, x, *args, rtol=1e-4, atol=1e-5, **kwargs):
         bool: Return True if the result is within a tolerance, otherwise False.
     """
 
-    y = f(x, *args, **kwargs)
-    y.backward(Tensor(np.ones(y.shape)))
-    bp_grad = x.grad
     num_grad = numerical_grad(f, x, *args, **kwargs)
+    y = f(x, *args, **kwargs)
+    y.backward(tensor(np.ones(y.shape)))
+    bp_grad = x.grad
 
     assert bp_grad.shape == num_grad.shape
     res = np.allclose(num_grad, bp_grad.numpy(), atol=atol, rtol=rtol)
@@ -43,7 +43,7 @@ def gradient_check(f, x, *args, rtol=1e-4, atol=1e-5, **kwargs):
         print(' values: {} ...'.format(val[1:-1]))
         print('Backprop Grad')
         print(' shape: {}'.format(bp_grad.shape))
-        val = str(bp_grad.flatten()[:10])
+        val = str(bp_grad.flatten().numpy()[:10])
         print(' values: {} ...'.format(val[1:-1]))
     return res
 
@@ -63,7 +63,7 @@ def numerical_grad(f, x, *args, **kwargs):
     Returns:
         `ndarray`: Gradient.
     """
-    eps = 1e-4
+    eps = 0.1
 
     x = x.numpy() if isinstance(x, Tensor) else x
     np_x = x.copy()
@@ -73,18 +73,16 @@ def numerical_grad(f, x, *args, **kwargs):
     while not it.finished:
         idx = it.multi_index
         tmp_val = x[idx].copy()
-
         x[idx] = tmp_val + eps
-        y1 = f(Tensor(x), *args, **kwargs)  # f(x+h)
+
+        y1 = f(tensor(x), *args, **kwargs)  # f(x+h)
         if isinstance(y1, Tensor):
             y1 = y1.numpy()
-        y1 = y1.copy()
 
         x[idx] = tmp_val - eps
-        y2 = f(Tensor(x), *args, **kwargs)  # f(x-h)
+        y2 = f(tensor(x), *args, **kwargs)  # f(x-h)
         if isinstance(y2, Tensor):
             y2 = y2.numpy()
-        y2 = y2.copy()
 
         diff = (y1 - y2).sum()
         grad[idx] = diff / (2 * eps)

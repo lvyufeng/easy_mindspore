@@ -1,4 +1,4 @@
-from mindtorch.autograd import Function
+from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
     raw_matmul, raw_add, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
     raw_cast
@@ -8,22 +8,22 @@ from mindtorch import dtype
 # Tensor operations: reshape / transpose / expand_dims / flatten
 # =============================================================================
 class Reshape(Function):
-    def __init__(self, shape):
-        self.shape = shape
-
-    def forward(self, x):
-        self.x_shape = x.shape
-        y = raw_reshape(x, self.shape)
+    @staticmethod
+    def forward(ctx: Context, x, shape):
+        ctx.save_for_backward(x.shape)
+        y = raw_reshape(x, shape)
         return y
 
-    def backward(self, gy):
-        return reshape(gy, self.x_shape)
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x_shape, = ctx.saved_values
+        return reshape(gy, x_shape)
 
 
 def reshape(x, shape):
     if x.shape == shape:
         return x
-    return Reshape(shape)(x)
+    return Reshape.apply(x, shape=shape)
 
 
 def flatten(x, start_dim=1, end_dim=-1):
@@ -39,26 +39,27 @@ def unflatten(x, dim, sizes):
 
 
 class Transpose(Function):
-    def __init__(self, axes=None):
-        self.axes = axes
-
-    def forward(self, x):
-        y = raw_transpose(x, self.axes)
+    @staticmethod
+    def forward(ctx: Context, x, axes):
+        ctx.save_for_backward(axes)
+        y = raw_transpose(x, axes)
         return y
 
-    def backward(self, gy):
-        if self.axes is None:
+    @staticmethod
+    def backward(ctx: Context, gy):
+        axes, = ctx.saved_values
+        if axes is None:
             return transpose(gy)
 
-        axes_len = len(self.axes)
-        inv_axes = utils.argsort([ax % axes_len for ax in self.axes])
+        axes_len = len(axes)
+        inv_axes = utils.argsort([ax % axes_len for ax in axes])
         return transpose(gy, inv_axes)
 
 
 def transpose(x, axes=None):
     if axes is None:
         axes = (1, 0)
-    return Transpose(axes)(x)
+    return Transpose.apply(x, axes=axes)
 
 def expand_dims(x, axis):
     shape = list(x.shape)
@@ -69,174 +70,162 @@ def expand_dims(x, axis):
 # sum / sum_to / broadcast_to / average / matmul / linear
 # =============================================================================
 class Sum(Function):
-    def __init__(self, axis, keepdims):
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def forward(self, x):
-        self.x_shape = x.shape
-        y = raw_sum(x, axis=self.axis, keepdims=self.keepdims)
+    @staticmethod
+    def forward(ctx: Context, x, axis, keepdims):
+        ctx.save_for_backward(x._shape, axis, keepdims)
+        y = raw_sum(x, axis=axis, keepdims=keepdims)
         return y
 
-    def backward(self, gy):
-        gy = utils.reshape_sum_backward(gy, self.x_shape, self.axis,
-                                        self.keepdims)
-        gx = broadcast_to(gy, self.x_shape)
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x_shape, axis, keepdims = ctx.saved_values
+        gy = utils.reshape_sum_backward(gy, x_shape, axis, keepdims)
+        gx = broadcast_to(gy, x_shape)
         return gx
 
 def sum(x, axis=None, keepdims=False):
     if x.dtype == dtype.bool:
         x = x.long()
-    return Sum(axis, keepdims)(x)
+    return Sum.apply(x, axis=axis, keepdims=keepdims)
 
 def mean(x, axis=None, keepdims=False):
     y = sum(x, axis, keepdims)
     return y * (y.data._size / x.data._size)
 
 class SumTo(Function):
-    def __init__(self, shape):
-        self.shape = shape
-
-    def forward(self, x):
-        self.x_shape = x.shape
-        y = utils.sum_to(x, self.shape)
+    @staticmethod
+    def forward(ctx: Context, x, shape):
+        ctx.save_for_backward(x._shape)
+        y = utils.sum_to(x, shape)
         return y
 
-    def backward(self, gy):
-        gx = broadcast_to(gy, self.x_shape)
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x_shape, = ctx.saved_values
+        gx = broadcast_to(gy, x_shape)
         return gx
 
 
 def sum_to(x, shape):
     if x.shape == shape:
         return x
-    return SumTo(shape)(x)
+    return SumTo.apply(x, shape=shape)
 
 
 class BroadcastTo(Function):
-    def __init__(self, shape):
-        self.shape = shape
-
-    def forward(self, x):
-        self.x_shape = x.shape
-        y = raw_broadcast_to(x, self.shape)
+    @staticmethod
+    def forward(ctx: Context, x, shape):
+        ctx.save_for_backward(x._shape)
+        y = raw_broadcast_to(x, shape)
         return y
 
-    def backward(self, gy):
-        gx = sum_to(gy, self.x_shape)
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x_shape, = ctx.saved_values
+        gx = sum_to(gy, x_shape)
         return gx
 
 
 def broadcast_to(x, shape):
     if x.shape == shape:
         return x
-    return BroadcastTo(shape)(x)
+    return BroadcastTo.apply(x, shape=shape)
 
 
 class MatMul(Function):
-    def __init__(self, transpose_a, transpose_b):
-        self.transpose_a = transpose_a
-        self.transpose_b = transpose_b
-
-    def forward(self, x, W):
-        y = raw_matmul(x, W, self.transpose_a, self.transpose_b)
+    @staticmethod
+    def forward(ctx: Context, x, w, transpose_a, transpose_b):
+        y = raw_matmul(x, w, transpose_a, transpose_b)
         return y
 
-    def backward(self, gy):
-        x, W = self.inputs
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, W = ctx.inputs
         gx = matmul(gy, W, transpose_b=True)
         gW = matmul(x, gy, transpose_a=True)
         return gx, gW
 
 
 def matmul(x, w, transpose_a=False, transpose_b=False):
-    return MatMul(transpose_a, transpose_b)(x, w)
+    return MatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
 
 
 class Linear(Function):
-    def forward(self, x, W, b):
-        y = raw_matmul(x, W, transpose_b=True)
+    @staticmethod
+    def forward(ctx: Context, x, w, b):
+        y = raw_matmul(x, w, transpose_b=True)
         if b is not None:
             y = raw_add(y, b)
         return y
 
-    def backward(self, gy):
-        x, W, b = self.inputs
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, W, b = ctx.inputs
         gb = None if b.data is None else sum_to(gy, b.shape)
         gx = matmul(gy, W)
         gW = matmul(x, gy, transpose_a=True)
         return gx, gW.T, gb
 
 
-def linear_simple(x, W, b=None):
-    t = matmul(x, W)
-    if b is None:
-        return t
-
-    y = t + b
-    t.data = None  # Release t.data (ndarray) for memory efficiency
-    return y
-
 class GetItem(Function):
-    def __init__(self, slices):
-        self.slices = slices
-
-    def forward(self, x):
-        slices = utils.slice_helper(self.slices)
+    @staticmethod
+    def forward(ctx: Context, x, slices):
+        ctx.save_for_backward(slices, x._shape)
+        slices = utils.slice_helper(slices)
         y = raw_strided_slice(x, *slices)
         return y
 
-    def backward(self, gy):
-        x, = self.inputs
-        f = GetItemGrad(self.slices, x.shape)
+    @staticmethod
+    def backward(ctx: Context, gy):
+        slices, x_shape = ctx.saved_values
+        f = GetItemGrad(slices, x_shape)
         return f(gy)
 
 
 class GetItemGrad(Function):
-    def __init__(self, slices, in_shape):
-        self.slices = slices
-        self.in_shape = in_shape
-
-    def forward(self, gy):
-        slices = utils.slice_helper(self.slices)
-        gx = raw_strided_slice_grad(gy, self.in_shape, *slices)
+    @staticmethod
+    def forward(ctx: Context, gy, slices, in_shape):
+        ctx.save_for_backward(slices)
+        slices = utils.slice_helper(slices)
+        gx = raw_strided_slice_grad(gy, in_shape, *slices)
         return gx
 
-    def backward(self, ggx):
-        return get_item(ggx, self.slices)
+    @staticmethod
+    def backward(ctx: Context, ggx):
+        slices, = ctx.saved_tensors
+        return get_item(ggx, slices)
 
 
 def get_item(x, slices):
-    f = GetItem(slices)
-    return f(x)
+    return GetItem.apply(x, slices)
 
 class Argmax(Function):
-    def __init__(self, axis):
-        self.axis = axis
-
-    def forward(self, x):
-        y = raw_argmax(x, self.axis)
+    @staticmethod
+    def forward(ctx: Context, x, axis):
+        y = raw_argmax(x, axis)
         return y
 
 def argmax(x, axis):
-    return Argmax(axis)(x, requires_grad=False)
+    return Argmax.apply(x, axis=axis, requires_grad=False)
 
 class Equal(Function):
-    def forward(self, x, y):
+    @staticmethod
+    def forward(ctx: Context, x, y):
         return raw_equal(x, y)
 
 def equal(x, y):
-    return Equal()(x, y, reqiures_grad=False)
+    return Equal.apply(x, y, requires_grad=False)
 
 class Cast(Function):
-    def __init__(self, dtype):
-        self.dtype = dtype
-
-    def forward(self, x):
-        return raw_cast(x, self.dtype)
+    @staticmethod
+    def forward(ctx: Context, x, dtype):
+        ctx.save_for_backward(dtype)
+        return raw_cast(x, dtype)
     
-    def backward(self, gy):
-        return cast(gy, self.dtype)
+    @staticmethod
+    def backward(ctx: Context, gy):
+        dtype, = ctx.saved_tensors
+        return cast(gy, dtype)
 
 def cast(x, dtype):
-    return Cast(dtype)(x)
+    return Cast.apply(x, dtype=dtype)
