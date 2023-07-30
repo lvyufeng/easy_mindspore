@@ -8,8 +8,9 @@ import mindtorch.optim as optim
 # import torch.nn as nn
 # import torch.nn.functional as F
 # import torch.optim as optim
+# from torch.optim.lr_scheduler import StepLR
 from torchvision import datasets, transforms
-from torch.optim.lr_scheduler import StepLR
+from mindtorch.optim.lr_scheduler import StepLR
 
 
 class Net(nn.Module):
@@ -101,14 +102,11 @@ def main():
                         help='For Saving the current Model')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
-    use_mps = not args.no_mps and torch.backends.mps.is_available()
 
     torch.manual_seed(args.seed)
 
     if use_cuda:
         device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
     else:
         device = torch.device("cpu")
 
@@ -125,9 +123,9 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
-    dataset1 = datasets.MNIST('MNIST_Data', train=True, download=True,
+    dataset1 = datasets.MNIST('./data', train=True, download=True,
                        transform=transform)
-    dataset2 = datasets.MNIST('MNIST_Data', train=False,
+    dataset2 = datasets.MNIST('./data', train=False,
                        transform=transform)
     train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)

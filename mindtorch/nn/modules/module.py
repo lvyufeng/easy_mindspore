@@ -419,3 +419,5 @@ class Module:
             if parameter.grad is not None:
                 parameter.zero_grad()
 
+    def to(self, *args, **kwargs):
+        return self

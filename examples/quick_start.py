@@ -120,7 +120,7 @@ start = time.time()
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(model, train_dataset)
-    # test(model, test_dataset, loss_fn)
+    test(model, test_dataset, loss_fn)
 print("Done!")
 end = time.time()
 print('total: ', end - start)

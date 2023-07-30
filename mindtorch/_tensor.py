@@ -292,3 +292,5 @@ def setup_tensor():
 def tensor(data, dtype=None, requires_grad=False):
     return Tensor(ensure_array(data, dtype), dtype=dtype, requires_grad=requires_grad)
 
+def is_tensor(x):
+    return isinstance(x, Tensor)

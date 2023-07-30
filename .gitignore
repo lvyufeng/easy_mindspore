@@ -131,3 +131,4 @@ dmypy.json
 
 MNIST_Data/
 *.zip
+data/
