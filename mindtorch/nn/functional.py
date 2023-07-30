@@ -1,6 +1,7 @@
 from mindtorch import BACKEND
 from .._tensor import Tensor, Dependency
-from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, ones
+from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
+    ones, matmul
 from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss
 
 def make_tuple(inp):
@@ -10,7 +11,8 @@ def make_tuple(inp):
         return (1, 1, inp, inp)
 
 def linear(x, W, b=None):
-    return Linear.apply(x, W, b)
+    # return Linear.apply(x, W, b)
+    return _bias_add(matmul(x, W, transpose_b=True), b)
 
 def relu(x):
     return ReLU.apply(x)

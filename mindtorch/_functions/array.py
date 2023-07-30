@@ -136,14 +136,20 @@ def broadcast_to(x, shape):
 class MatMul(Function):
     @staticmethod
     def forward(ctx: Context, x, w, transpose_a, transpose_b):
+        ctx.save_for_backward(transpose_a, transpose_b)
         y = raw_matmul(x, w, transpose_a, transpose_b)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         x, W = ctx.inputs
-        gx = matmul(gy, W, transpose_b=True)
-        gW = matmul(x, gy, transpose_a=True)
+        transpose_a, transpose_b = ctx.saved_tensors
+        gx = matmul(gy, W, transpose_b=not transpose_b)
+        gW = matmul(x, gy, transpose_a=not transpose_a)
+        if transpose_a:
+            gx = gx.T
+        if transpose_b:
+            gW = gW.T
         return gx, gW
 
 

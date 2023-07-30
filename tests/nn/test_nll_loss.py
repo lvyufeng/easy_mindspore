@@ -52,10 +52,3 @@ class TestNLLLoss(unittest.TestCase):
         y.backward()
 
         assert np.allclose(x.grad.numpy(), x_e.grad.numpy())
-
-    # def test_backward1(self):
-    #     n, c, h, w = 1, 5, 16, 16
-    #     ksize, stride, pad = 2, 2, 0
-    #     x = tensor(np.random.randn(n, c, h, w).astype('f') * 1000, requires_grad=True)
-    #     f = lambda x: F.max_pool2d(x, ksize, stride, pad)
-    #     self.assertTrue(gradient_check(f, x))
