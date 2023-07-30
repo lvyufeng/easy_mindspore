@@ -2,7 +2,9 @@ from mindtorch import tensor
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentropy, raw_mul, \
     raw_softmax_crossentropy_ascend, raw_matmul, raw_add, raw_conv2d, raw_conv2d_gx, raw_conv2d_gw, \
-    raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad
+    raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
+    raw_nll_loss, raw_nll_loss_grad, raw_zeros_like
+
 from mindtorch._functions import utils
 from .array import matmul
 from .creation import zeros_like
@@ -209,3 +211,18 @@ class MaxPoolGrad(Function):
 def _maxpool_grad(x, grad, argmax, kernel_size, strides=None, pads=0, dilation=(1, 1), ceil_mode=False):
     return MaxPoolGrad.apply(x, grad, argmax, kernel_size=kernel_size, strides=strides, pads=pads,
                              dilation=dilation, ceil_mode=ceil_mode)
+
+class NLLLoss(Function):
+    @staticmethod
+    def forward(ctx: Context, input, target, weight, ignore_index, reduction):
+        out, total_weight = raw_nll_loss(input, target, weight, ignore_index, reduction)
+        ctx.save_for_backward(ignore_index, reduction, total_weight)        
+        return out
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        input, target, weight = ctx.inputs
+        ignore_index, reduction, total_weight = ctx.saved_tensors
+        gx = raw_nll_loss_grad(input.data, gy.data, target.data, weight.data,
+                               total_weight, ignore_index, reduction)
+        return tensor(gx), zeros_like(target), zeros_like(weight)

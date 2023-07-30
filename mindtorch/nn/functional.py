@@ -1,7 +1,7 @@
 from mindtorch import BACKEND
 from .._tensor import Tensor, Dependency
-from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend
-from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool
+from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, ones
+from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss
 
 def make_tuple(inp):
     if isinstance(inp, tuple):
@@ -64,6 +64,19 @@ def max_pool2d(input, kernel_size, strides=None, padding=0, dilation=1, ceil_mod
     
     return _maxpool(input, kernel_size, stride, pads, dilation, ceil_mode, return_indices)
 
+def log_softmax(input, dim=None, dtype=None):
+    if dim is None:
+        dim = -1
+    out = LogSoftmax.apply(input, axis=dim)
+    if dtype is not None:
+        out = out.to(dtype)
+    return out
+
+
+def nll_loss(input, target, weight=None, ignore_index=- 100, reduction='mean'):
+    if weight is None:
+        weight = ones(input.shape[-1])
+    return NLLLoss.apply(input, target, weight, ignore_index=ignore_index, reduction=reduction)
 
 def tanh(tensor: Tensor) -> Tensor:
     '''

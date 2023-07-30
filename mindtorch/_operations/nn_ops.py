@@ -116,3 +116,18 @@ def raw_maxpool_grad(x, grad, argmax, kernel_size, strides=None, pads=0, dilatio
     _maxpool_grad.add_prim_attr("ceil_mode", ceil_mode)
 
     return executor.real_run_op(_maxpool_grad, 'MaxPoolGradWithArgmaxV2', [x, grad, argmax])
+
+
+_nll_loss = Primitive('NLLLoss')
+_nll_loss.init_prim_io_names(inputs=['x', 'target', "weight"], outputs=['loss', 'total_weight'])
+def raw_nll_loss(input, target, weight, ignore_index=-100, reduction='mean'):
+    _nll_loss.add_prim_attr("ignore_index", ignore_index)
+    _nll_loss.add_prim_attr("reduction", reduction)
+    return executor.real_run_op(_nll_loss, 'NLLLoss', [input, target, weight])
+
+_nll_loss_grad = Primitive('NLLLossGrad')
+_nll_loss_grad.init_prim_io_names(inputs=['x', 'loss_grad', 'target', 'weight', 'total_weight'], outputs=['x_grad'])
+def raw_nll_loss_grad(x, loss_grad, target, weight, total_weight, ignore_index=-100, reduction='mean'):
+    _nll_loss_grad.add_prim_attr("ignore_index", ignore_index)
+    _nll_loss_grad.add_prim_attr("reduction", reduction)
+    return executor.real_run_op(_nll_loss_grad, 'NLLLossGrad', [x, loss_grad, target, weight, total_weight])

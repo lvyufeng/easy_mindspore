@@ -267,7 +267,11 @@ class Tensor:
     def bool(self):
         return mindtorch._functions.cast(self, dtype.bool)
 
-
+    def to(self, target):
+        if isinstance(target, dtype.typing.Type):
+            return mindtorch._functions.cast(self, target)
+        return self
+            
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
         matmul, get_item, equal

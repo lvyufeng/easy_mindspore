@@ -75,3 +75,12 @@ _cast.init_prim_io_names(inputs=['x', 'dst_type'], outputs=['output'])
 def raw_cast(x, dtype):
     return executor.real_run_op(_cast, "Cast", (x, dtype))
 
+_log_softmax = Primitive('LogSoftmax')
+def raw_log_softmax(x, axis=-1):
+    _log_softmax.add_prim_attr('axis', axis)
+    return executor.real_run_op(_log_softmax, "LogSoftmax", (x,))
+
+_log_softmax_grad = Primitive('LogSoftmaxGrad')
+def raw_log_softmax_grad(y, gy, axis=-1):
+    _log_softmax_grad.add_prim_attr('axis', axis)
+    return executor.real_run_op(_log_softmax_grad, "LogSoftmaxGrad", (y, gy))

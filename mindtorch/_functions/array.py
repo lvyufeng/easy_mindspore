@@ -1,9 +1,9 @@
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
     raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
-    raw_cast
+    raw_cast, raw_log_softmax, raw_log_softmax_grad
 from mindtorch._functions import utils
-from mindtorch import dtype
+from mindtorch import dtype, tensor
 from .utils import ensure_tensor
 # =============================================================================
 # Tensor operations: reshape / transpose / expand_dims / flatten
@@ -214,3 +214,17 @@ class Cast(Function):
 
 def cast(x, dtype):
     return Cast.apply(x, dtype=dtype)
+
+
+class LogSoftmax(Function):
+    @staticmethod
+    def forward(ctx: Context, x, axis):
+        ctx.save_for_backward(axis)
+        return raw_log_softmax(x, axis)
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        axis, = ctx.saved_tensors
+        y, = ctx.outputs
+        gx = raw_log_softmax_grad(y().data, gy.data, axis)
+        return tensor(gx, gy.requires_grad)
