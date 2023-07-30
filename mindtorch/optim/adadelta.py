@@ -1,3 +1,4 @@
+import mindtorch
 from .optimizer import Optimizer
 
 
@@ -39,14 +40,14 @@ class Adadelta(Optimizer):
             for p in group['params']:
                 if p.grad is None:
                     continue
-                grad = p.grad.data
+                grad = p.grad
                 state = self.state[p]
 
                 # State initialization
                 if len(state) == 0:
                     state['step'] = 0
-                    state['square_avg'] = grad.new().resize_as_(grad).zero_()
-                    state['acc_delta'] = grad.new().resize_as_(grad).zero_()
+                    state['square_avg'] = mindtorch.zeros(grad.shape)
+                    state['acc_delta'] = mindtorch.zeros(grad.shape)
 
                 square_avg, acc_delta = state['square_avg'], state['acc_delta']
                 rho, eps = group['rho'], group['eps']
@@ -56,10 +57,10 @@ class Adadelta(Optimizer):
                 if group['weight_decay'] != 0:
                     grad = grad.add(group['weight_decay'], p.data)
 
-                square_avg.mul_(rho).addcmul_(1 - rho, grad, grad)
+                square_avg.mul_(rho).addcmul_(grad, grad, value=1-rho)
                 std = square_avg.add(eps).sqrt_()
                 delta = acc_delta.add(eps).sqrt_().div_(std).mul_(grad)
-                p.data.add_(-group['lr'], delta)
-                acc_delta.mul_(rho).addcmul_(1 - rho, delta, delta)
+                p.add_(delta, alpha=-group['lr'])
+                acc_delta.mul_(rho).addcmul_(delta, delta, value=1-rho)
 
         return loss

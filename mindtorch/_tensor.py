@@ -1,14 +1,12 @@
 import numpy as np
-import warnings
 from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 from mindspore.common.api import _pynative_executor as executor
 
 import mindtorch
-from mindtorch import BACKEND
 from mindtorch.config import using_config
 from mindtorch import dtype
-from .utils import ASCEND_DTYPE_MAP, NORMAL_DTYPE_MAP
+from .utils import NORMAL_DTYPE_MAP
 
 def _uniform(self, a, b):
     dtype = self.dtype
@@ -41,15 +39,6 @@ def ensure_array(arrayable: Arrayable, dtype) -> Array:
             origin_dtype = str(arrayable.dtype)
             dtype = NORMAL_DTYPE_MAP.get(origin_dtype, None)
 
-        if BACKEND == 'Ascend':
-            if isinstance(arrayable, int):
-                origin_dtype = type(arrayable)
-                dtype = ASCEND_DTYPE_MAP[origin_dtype]
-                warnings.warn(f'Tensor dtype will auto change from system type {origin_dtype} to tensor dtype {dtype} on Ascend.')
-            elif isinstance(arrayable, np.ndarray):
-                origin_dtype = str(arrayable.dtype)
-                dtype = ASCEND_DTYPE_MAP.get(origin_dtype, None)
-                warnings.warn(f'Tensor dtype will auto change from numpy dtype {origin_dtype} to tensor dtype {dtype} on Ascend.')
         return Array(arrayable, dtype)
     return Array(arrayable, dtype)
 
@@ -118,6 +107,12 @@ class Tensor:
         if dim is None:
             return self.shape
         return self.shape[dim]
+
+    def dim(self):
+        return self.ndim
+
+    def numel(self):
+        return self.data._size
 
     @property
     def dtype(self):
@@ -198,6 +193,9 @@ class Tensor:
             shape = shape[0]
         return mindtorch._functions.reshape(self, shape)
 
+    def view_as(self, other):
+        return self.reshape(other.shape)
+
     def sum(self, axis=None, keepdims=False):
         return mindtorch._functions.sum(self, axis, keepdims)
 
@@ -210,8 +208,14 @@ class Tensor:
     def unflatten(self, dim, sizes):
         return mindtorch._functions.unflatten(self, dim, sizes)
 
-    def argmax(self, axis=None):
-        return mindtorch._functions.argmax(self, axis)
+    def argmax(self, dim=None, keepdim=False):
+        out = mindtorch._functions.argmax(self, dim)
+        if keepdim:
+            return out.unsqueeze(dim)
+        return out
+
+    def unsqueeze(self, dim):
+        return mindtorch._functions.expand_dims(self, dim)
 
     def cuda(self):
         return self
@@ -252,6 +256,37 @@ class Tensor:
     def __format__(self, format_spec):
         return np.ndarray.__format__(self.numpy(), format_spec)
 
+    def mul_(self, other):
+        other_data = other.data if isinstance(other, Tensor) else other
+        self.data = mindtorch._operations.raw_mul(self.data, other_data)
+        return self
+
+    def addcmul_(self, tensor1, tensor2, value=1):
+        self.data = mindtorch._operations.raw_addcmul(self.data, tensor1.data, tensor2.data, Array(value))
+        return self
+
+    def sqrt_(self):
+        self.data = mindtorch._operations.raw_sqrt(self.data)
+        return self
+
+    def div_(self, other):
+        other_data = other.data if isinstance(other, Tensor) else other
+        self.data = mindtorch._operations.raw_div(self.data, other_data)
+        return self
+
+    def add_(self, other, alpha=1):
+        other_data = other.data if isinstance(other, Tensor) else other
+        if alpha == 1:
+            self.data = mindtorch._operations.raw_add(self.data, other_data)
+        else:
+            other_data = mindtorch._operations.raw_mul(other_data, alpha)
+            self.data = mindtorch._operations.raw_add(self.data, other_data)
+        return self
+
+    def uniform_(self, a, b):
+        self.data.uniform_(a, b)
+        return self
+
     def float(self):
         return mindtorch._functions.cast(self, dtype.float)
 
@@ -271,10 +306,15 @@ class Tensor:
         if isinstance(target, dtype.typing.Type):
             return mindtorch._functions.cast(self, target)
         return self
-            
+
+    def item(self):
+        return self.data.asnumpy().item()
+
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
         matmul, get_item, equal
+    Tensor.add = add
+    Tensor.eq = equal
     Tensor.__add__ = add
     Tensor.__radd__ = add
     Tensor.__mul__ = mul

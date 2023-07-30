@@ -5,7 +5,7 @@ from mindtorch.nn.parameter import Parameter
 from .. import functional as F
 from .module import Module
 from .utils import _single, _pair, _triple
-
+from .. import init
 
 class _ConvNd(Module):
 
@@ -38,13 +38,12 @@ class _ConvNd(Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        n = self.in_channels
-        for k in self.kernel_size:
-            n *= k
-        stdv = 1. / math.sqrt(n)
-        self.weight.data.uniform_(-stdv, stdv)
+        init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         if self.bias is not None:
-            self.bias.data.uniform_(-stdv, stdv)
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+            if fan_in != 0:
+                bound = 1 / math.sqrt(fan_in)
+                init.uniform_(self.bias, -bound, bound)
 
     def __repr__(self):
         s = ('{name}({in_channels}, {out_channels}, kernel_size={kernel_size}'

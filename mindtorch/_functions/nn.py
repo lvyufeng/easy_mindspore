@@ -50,7 +50,7 @@ class SoftmaxCrossEntropyAscend(Function):
     @staticmethod
     def backward(ctx:Context, gy):
         _, labels = ctx.inputs
-        grads, = ctx.save_for_backward
+        grads, = ctx.saved_tensors
         grad = grads * gy.reshape(-1, 1)
         return grad, zeros_like(labels)
 

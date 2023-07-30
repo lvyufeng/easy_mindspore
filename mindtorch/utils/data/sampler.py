@@ -1,5 +1,18 @@
 import mindtorch
 
+import random
+
+def randperm(n):
+    # Create a list of integers from 1 to n
+    perm = list(range(0, n))
+
+    # Fisher-Yates shuffle algorithm to generate random permutation
+    for i in range(n - 1, 0, -1):
+        j = random.randrange(i + 1)
+        perm[i], perm[j] = perm[j], perm[i]
+
+    return perm
+
 class Sampler(object):
     """Base class for all Samplers.
 
@@ -46,7 +59,7 @@ class RandomSampler(Sampler):
         self.data_source = data_source
 
     def __iter__(self):
-        return iter(torch.randperm(len(self.data_source)).long())
+        return iter(randperm(len(self.data_source)))
 
     def __len__(self):
         return len(self.data_source)

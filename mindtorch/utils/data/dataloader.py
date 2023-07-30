@@ -1,3 +1,4 @@
+import torch
 import mindtorch
 import multiprocessing
 from .sampler import SequentialSampler, RandomSampler, BatchSampler
@@ -65,8 +66,10 @@ def _pin_memory_loop(in_queue, out_queue, done_event):
 def default_collate(batch):
     "Puts each data field into a tensor with outer dimension batch size"
     if mindtorch.is_tensor(batch[0]):
-        out = None
-        return torch.stack(batch, 0, out=out)
+        return torch.stack(batch, 0)
+    elif torch.is_tensor(batch[0]):
+        out = torch.stack(batch, 0)
+        return mindtorch.tensor(out.numpy())
     elif type(batch[0]).__module__ == 'numpy':
         elem = batch[0]
         if type(elem).__name__ == 'ndarray':
@@ -131,14 +134,14 @@ class DataLoaderIter(object):
                 w.start()
 
             if self.pin_memory:
-                in_data = self.data_queue
-                self.data_queue = queue.Queue()
-                self.pin_thread = threading.Thread(
-                    target=_pin_memory_loop,
-                    args=(in_data, self.data_queue, self.done_event))
-                self.pin_thread.daemon = True
-                self.pin_thread.start()
-
+                # in_data = self.data_queue
+                # self.data_queue = queue.Queue()
+                # self.pin_thread = threading.Thread(
+                #     target=_pin_memory_loop,
+                #     args=(in_data, self.data_queue, self.done_event))
+                # self.pin_thread.daemon = True
+                # self.pin_thread.start()
+                pass
             # prime the prefetch loop
             for _ in range(2 * self.num_workers):
                 self._put_indices()
@@ -151,7 +154,8 @@ class DataLoaderIter(object):
             indices = next(self.sample_iter)  # may raise StopIteration
             batch = self.collate_fn([self.dataset[i] for i in indices])
             if self.pin_memory:
-                batch = pin_memory_batch(batch)
+                # batch = pin_memory_batch(batch)
+                pass
             return batch
 
         # check if the next sample has already been generated

@@ -6,8 +6,3 @@ NORMAL_DTYPE_MAP = {
     "float64": typing.Float(32),
 }
 
-ASCEND_DTYPE_MAP = {
-    int: typing.Int(32),
-    "int64": typing.Int(32),
-}
-

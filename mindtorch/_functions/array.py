@@ -11,7 +11,7 @@ from .utils import ensure_tensor
 class Reshape(Function):
     @staticmethod
     def forward(ctx: Context, x, shape):
-        ctx.save_for_backward(x.shape)
+        ctx.save_for_backward(x._shape)
         y = raw_reshape(x, shape)
         return y
 
@@ -187,7 +187,7 @@ class GetItemGrad(Function):
 
 
 def get_item(x, slices):
-    return GetItem.apply(x, slices)
+    return GetItem.apply(x, slices=slices)
 
 class Argmax(Function):
     @staticmethod

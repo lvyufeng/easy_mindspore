@@ -4,7 +4,7 @@ import mindtorch
 from mindtorch.nn.parameter import Parameter
 from .. import functional as F
 from .module import Module
-
+from .. import init
 
 class Linear(Module):
     r"""Applies a linear transformation to the incoming data: :math:`y = Ax + b`
@@ -44,10 +44,11 @@ class Linear(Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight.size(1))
-        self.weight.data.uniform_(-stdv, stdv)
+        init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         if self.bias is not None:
-            self.bias.data.uniform_(-stdv, stdv)
+            fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            init.uniform_(self.bias, -bound, bound)
 
     def forward(self, input):
         return F.linear(input, self.weight, self.bias)

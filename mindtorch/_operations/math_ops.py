@@ -13,6 +13,11 @@ def raw_sum(x, axis=None, keepdims=False):
         axis = ()
     return executor.real_run_op(_sum, 'ReduceSum', [x, axis])
 
+_addcmul = ops.Addcmul()
+def raw_addcmul(input, tensor0, tensor1, value):
+    return executor.real_run_op(_addcmul, 'Addcmul', [input, tensor0, tensor1, value])
+
+
 _add = ops.Add()
 def raw_add(x, y):
     return executor.real_run_op(_add, 'Add', [x, y])
@@ -32,6 +37,10 @@ def raw_div(x, y):
 _pow = ops.Pow()
 def raw_pow(x, pow):
     return executor.real_run_op(_pow, 'Pow', [x, pow])
+
+_sqrt = ops.Sqrt()
+def raw_sqrt(x):
+    return executor.real_run_op(_sqrt, 'Sqrt', [x])
 
 _sin = ops.Sin()
 def raw_sin(x):
