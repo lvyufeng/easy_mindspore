@@ -1,4 +1,11 @@
+from mindtorch import Tensor, tensor
 from mindtorch._operations import raw_sum, raw_squeeze
+
+def ensure_tensor(tensorable, dtype=None) -> 'Tensor':
+    if isinstance(tensorable, Tensor):
+        return tensorable
+    else:
+        return tensor(tensorable, dtype=dtype)
 
 def argsort(arr):
     return [i for i, _ in sorted(enumerate(arr), key=lambda x: x[1])]

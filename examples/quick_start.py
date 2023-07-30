@@ -111,9 +111,6 @@ def test(model, dataset, loss_fn):
 
 # In[13]:
 
-import cProfile
-
-cProfile.run('train(model, train_dataset)')
 
 epochs = 3
 start = time.time()
@@ -124,3 +121,7 @@ for t in range(epochs):
 print("Done!")
 end = time.time()
 print('total: ', end - start)
+
+import cProfile
+
+cProfile.run('train(model, train_dataset)')

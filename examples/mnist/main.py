@@ -1,9 +1,13 @@
 from __future__ import print_function
 import argparse
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+import mindtorch as torch
+import mindtorch.nn as nn
+import mindtorch.nn.functional as F
+import mindtorch.optim as optim
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+# import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 

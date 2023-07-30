@@ -1,14 +1,8 @@
-from mindtorch import Tensor, tensor
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_mul, raw_square, raw_add, raw_neg, raw_sub, \
     raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log
 from .array import sum_to
-
-def ensure_tensor(tensorable) -> 'Tensor':
-    if isinstance(tensorable, Tensor):
-        return tensorable
-    else:
-        return tensor(tensorable)
+from .utils import ensure_tensor
 
 class Square(Function):
     @staticmethod

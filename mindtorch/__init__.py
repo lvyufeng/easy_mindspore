@@ -3,6 +3,7 @@ BACKEND = context.get_context('device_target')
 
 from .dtype import *
 from ._tensor import Tensor, setup_tensor, tensor
-from ._functions import ones, zeros
+from ._functions import ones, zeros, flatten
+
 setup_tensor()
 

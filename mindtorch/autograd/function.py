@@ -32,8 +32,8 @@ class Context:
 # Constructors
 class Function:
     @classmethod
-    def _backward(cls, ctx: Context, grad_out: Tensor) -> Tuple[Tensor, ...]:
-        return wrap_tuple(cls.backward(ctx, grad_out))  # type: ignore
+    def _backward(cls, ctx: Context, *grad_out: Tensor) -> Tuple[Tensor, ...]:
+        return wrap_tuple(cls.backward(ctx, *grad_out))  # type: ignore
 
     @classmethod
     def _forward(cls, ctx: Context, *inps: Tensor, **kwargs) -> Tensor:

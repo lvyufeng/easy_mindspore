@@ -1,9 +1,10 @@
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
-    raw_matmul, raw_add, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
+    raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
     raw_cast
 from mindtorch._functions import utils
 from mindtorch import dtype
+from .utils import ensure_tensor
 # =============================================================================
 # Tensor operations: reshape / transpose / expand_dims / flatten
 # =============================================================================
@@ -150,23 +151,6 @@ def matmul(x, w, transpose_a=False, transpose_b=False):
     return MatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
 
 
-class Linear(Function):
-    @staticmethod
-    def forward(ctx: Context, x, w, b):
-        y = raw_matmul(x, w, transpose_b=True)
-        if b is not None:
-            y = raw_add(y, b)
-        return y
-
-    @staticmethod
-    def backward(ctx: Context, gy):
-        x, W, b = ctx.inputs
-        gb = None if b.data is None else sum_to(gy, b.shape)
-        gx = matmul(gy, W)
-        gW = matmul(x, gy, transpose_a=True)
-        return gx, gW.T, gb
-
-
 class GetItem(Function):
     @staticmethod
     def forward(ctx: Context, x, slices):
@@ -214,6 +198,7 @@ class Equal(Function):
         return raw_equal(x, y)
 
 def equal(x, y):
+    y = ensure_tensor(y, x.dtype)
     return Equal.apply(x, y, requires_grad=False)
 
 class Cast(Function):
