@@ -57,10 +57,16 @@ class Adadelta(Optimizer):
                 if group['weight_decay'] != 0:
                     grad = grad.add(group['weight_decay'], p.data)
 
-                square_avg.mul_(rho).addcmul_(grad, grad, value=1-rho)
-                std = square_avg.add(eps).sqrt_()
-                delta = acc_delta.add(eps).sqrt_().div_(std).mul_(grad)
-                p.add_(delta, alpha=-group['lr'])
-                acc_delta.mul_(rho).addcmul_(delta, delta, value=1-rho)
+                # square_avg.mul_(rho).addcmul_(grad, grad, value=1-rho)
+                # std = square_avg.add(eps).sqrt_()
+                # delta = acc_delta.add(eps).sqrt_().div_(std).mul_(grad)
+                # p.add_(delta, alpha=-group['lr'])
+                # acc_delta.mul_(rho).addcmul_(delta, delta, value=1-rho)
+                param_, square_avg_, acc_delta_ = mindtorch._operations.raw_adadelta(
+                    p.data, square_avg.data, acc_delta.data, group['lr'], rho, eps, grad.data
+                )
+                p.data = param_
+                square_avg.data = square_avg_
+                acc_delta.data = acc_delta_
 
         return loss

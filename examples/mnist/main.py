@@ -137,11 +137,16 @@ def main():
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+
+    import cProfile
+
+
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
 
+    cProfile.run('train(args, model, device, train_loader, optimizer, epoch)')
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
 
