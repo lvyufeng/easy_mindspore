@@ -115,8 +115,8 @@ class Div(Function):
         gx0 = gy / x1
         gx1 = gy * (-x0 / x1 ** 2)
         if x0.shape != x1.shape:  # for broadcast
-            gx0 = sum_to(gx0, x0._shape)
-            gx1 = sum_to(gx1, x1._shape)
+            gx0 = sum_to(gx0, x0.shape)
+            gx1 = sum_to(gx1, x1.shape)
         return gx0, gx1
 
 def div(x0, x1):

@@ -1,9 +1,9 @@
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
     raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
-    raw_cast, raw_log_softmax, raw_log_softmax_grad
+    raw_cast, raw_log_softmax, raw_log_softmax_grad, raw_lt, raw_le, raw_ne, raw_gt, raw_ge
 from mindtorch._functions import utils
-from mindtorch import dtype, tensor
+from mindtorch import dtype, tensor, Tensor
 from .utils import ensure_tensor
 # =============================================================================
 # Tensor operations: reshape / transpose / expand_dims / flatten
@@ -198,15 +198,6 @@ class Argmax(Function):
 def argmax(x, axis):
     return Argmax.apply(x, axis=axis, requires_grad=False)
 
-class Equal(Function):
-    @staticmethod
-    def forward(ctx: Context, x, y):
-        return raw_equal(x, y)
-
-def equal(x, y):
-    y = ensure_tensor(y, x.dtype)
-    return Equal.apply(x, y, requires_grad=False)
-
 class Cast(Function):
     @staticmethod
     def forward(ctx: Context, x, dtype):
@@ -234,3 +225,56 @@ class LogSoftmax(Function):
         y, = ctx.outputs
         gx = raw_log_softmax_grad(y().data, gy.data, axis)
         return tensor(gx, gy.requires_grad)
+
+# cmp operators
+class Equal(Function):
+    @staticmethod
+    def forward(ctx: Context, x, y):
+        return raw_equal(x, y)
+
+def equal(x, y):
+    if isinstance(y, Tensor):
+        return Equal.apply(x, y, requires_grad=False)
+    return Equal.apply(x, y=y, requires_grad=False)
+
+class Less(Function):
+    @staticmethod
+    def forward(ctx: Context, x, y):
+        return raw_lt(x, y)
+
+def less(x, y):
+    if isinstance(y, Tensor):
+        return Less.apply(x, y, requires_grad=False)
+    return Less.apply(x, y=y, requires_grad=False)
+
+class LessEqual(Function):
+    @staticmethod
+    def forward(ctx: Context, x, y):
+        return raw_le(x, y)
+
+def le(x, y):
+    if isinstance(y, Tensor):
+        return LessEqual.apply(x, y, requires_grad=False)
+    return LessEqual.apply(x, y=y, requires_grad=False)
+
+class Greater(Function):
+    @staticmethod
+    def forward(ctx: Context, x, y):
+        return raw_gt(x, y)
+
+def greater(x, y):
+    if isinstance(y, Tensor):
+        return Greater.apply(x, y, requires_grad=False)
+    return Greater.apply(x, y=y, requires_grad=False)
+
+class GreaterEqual(Function):
+    @staticmethod
+    def forward(ctx: Context, x, y):
+        return raw_ge(x, y)
+
+def ge(x, y):
+    if isinstance(y, Tensor):
+        return GreaterEqual.apply(x, y, requires_grad=False)
+    return GreaterEqual.apply(x, y=y, requires_grad=False)
+
+

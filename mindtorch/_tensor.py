@@ -312,7 +312,7 @@ class Tensor:
 
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
-        matmul, get_item, equal
+        matmul, get_item, equal, less, le, greater, ge
     Tensor.add = add
     Tensor.eq = equal
     Tensor.__add__ = add
@@ -328,6 +328,10 @@ def setup_tensor():
     Tensor.__matmul__ = matmul
     Tensor.__getitem__ = get_item
     Tensor.__eq__ = equal
+    Tensor.__lt__ = less
+    Tensor.__le__ = le
+    Tensor.__gt__ = greater
+    Tensor.__ge__ = ge
 
 def tensor(data, dtype=None, requires_grad=False):
     return Tensor(ensure_array(data, dtype), dtype=dtype, requires_grad=requires_grad)

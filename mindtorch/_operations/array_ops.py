@@ -9,24 +9,6 @@ tile_op.init_prim_io_names(inputs=['x', 'multiples'], outputs=['output'])
 def raw_tile(x, multiples):
     return executor.real_run_op(tile_op, "Tile", (x, multiples))
 
-ones_like_op = Primitive('OnesLike')
-ones_like_op.init_prim_io_names(inputs=['x'], outputs=['y'])
-def raw_ones_like(x, *, dtype=None):
-    return executor.real_run_op(ones_like_op, 'OnesLike', [x])
-
-zeros_like_op = Primitive('ZerosLike')
-zeros_like_op.init_prim_io_names(inputs=['x'], outputs=['y'])
-def raw_zeros_like(x, *, dtype=None):
-    return executor.real_run_op(zeros_like_op, 'ZerosLike', [x])
-
-_zeros = Primitive('Zeros')
-def raw_zeros(shape, dtype):
-    return executor.real_run_op(_zeros, 'Zeros', [shape, dtype])
-
-_ones = Primitive('Ones')
-def raw_ones(shape, dtype):
-    return executor.real_run_op(_ones, 'Ones', [shape, dtype])
-
 cast_op = Primitive('Cast')
 cast_op.init_prim_io_names(inputs=['x', 'dst_type'], outputs=['output'])
 def raw_cast(x, dtype):
@@ -65,11 +47,6 @@ def raw_argmax(x, axis):
     _argmax.add_prim_attr('axis', axis)
     return executor.real_run_op(_argmax, "Argmax", (x,))
 
-_equal = Primitive('Equal')
-_equal.init_prim_io_names(inputs=['x', 'y'], outputs=['output'])
-def raw_equal(x, y):
-    return executor.real_run_op(_equal, "Equal", (x, y))
-
 _cast = Primitive('Cast')
 _cast.init_prim_io_names(inputs=['x', 'dst_type'], outputs=['output'])
 def raw_cast(x, dtype):
@@ -84,3 +61,29 @@ _log_softmax_grad = Primitive('LogSoftmaxGrad')
 def raw_log_softmax_grad(y, gy, axis=-1):
     _log_softmax_grad.add_prim_attr('axis', axis)
     return executor.real_run_op(_log_softmax_grad, "LogSoftmaxGrad", (y, gy))
+
+# lt, le, eq, ne, gt, ge
+_equal = Primitive('Equal')
+_equal.init_prim_io_names(inputs=['x', 'y'], outputs=['output'])
+def raw_equal(x, y):
+    return executor.real_run_op(_equal, "Equal", (x, y))
+
+_lt = ops.Less()
+def raw_lt(x, y):
+    return executor.real_run_op(_lt, "Less", (x, y))
+
+_le = ops.LessEqual()
+def raw_le(x, y):
+    return executor.real_run_op(_le, "LessEqual", (x, y))
+
+_ne = ops.NotEqual()
+def raw_ne(x, y):
+    return executor.real_run_op(_ne, "NotEqual", (x, y))
+
+_gt = ops.Greater()
+def raw_gt(x, y):
+    return executor.real_run_op(_gt, "Greater", (x, y))
+
+_ge = ops.GreaterEqual()
+def raw_ge(x, y):
+    return executor.real_run_op(_ge, "GreaterEqual", (x, y))

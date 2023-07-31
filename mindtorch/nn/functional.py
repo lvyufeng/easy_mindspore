@@ -1,7 +1,7 @@
 from mindtorch import BACKEND
 from .._tensor import Tensor, Dependency
 from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
-    ones, matmul
+    ones, matmul, uniform
 from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss
 
 def make_tuple(inp):
@@ -52,6 +52,10 @@ def dropout(x: Tensor, dropout:int=0.5, training:bool=True) -> Tensor:
     """
     if training and dropout != 0:
         return Dropout.apply(x, dropout=dropout)
+        # mask = uniform(x.shape) > dropout
+        # scale = 1 - dropout
+        # y = x * mask / scale
+        # return y
     else:
         return x
 

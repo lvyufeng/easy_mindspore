@@ -35,6 +35,7 @@ def raw_conv2d(x, w, out_channel, kernel_size, pad_mode="valid", pad=0, stride=1
     _conv2d.add_prim_attr('stride', stride)
     _conv2d.add_prim_attr('dilation', dilation)
     _conv2d.add_prim_attr('group', groups)
+    _conv2d.add_prim_attr('groups', groups)
     _conv2d.add_prim_attr('data_format', data_format)
     return executor.real_run_op(_conv2d, 'Conv2D', (x, w))
 
@@ -51,6 +52,7 @@ def raw_conv2d_gx(gy, w, x_shape, out_channel, kernel_size, pad_mode="valid", pa
     _conv2d_gx.add_prim_attr('stride', stride)
     _conv2d_gx.add_prim_attr('dilation', dilation)
     _conv2d_gx.add_prim_attr('group', groups)
+    _conv2d_gx.add_prim_attr('groups', groups)
     _conv2d_gx.add_prim_attr('data_format', data_format)
     return executor.real_run_op(_conv2d_gx, 'Conv2DBackpropInput', (gy, w, x_shape))
 
@@ -67,6 +69,7 @@ def raw_conv2d_gw(gy, x, w_shape, out_channel, kernel_size, pad_mode="valid", pa
     _conv2d_gw.add_prim_attr('stride', stride)
     _conv2d_gw.add_prim_attr('dilation', dilation)
     _conv2d_gw.add_prim_attr('group', groups)
+    _conv2d_gw.add_prim_attr('groups', groups)
     _conv2d_gw.add_prim_attr('data_format', data_format)
     return executor.real_run_op(_conv2d_gw, 'Conv2DBackpropFilter', (gy, x, w_shape))
 
@@ -83,10 +86,10 @@ def raw_bias_add_grad(gy):
     return executor.real_run_op(_bias_add_grad, 'BiasAddGrad', [gy])
 
 _dropout = Primitive('Dropout')
+_dropout.add_prim_attr('Seed0', 1)
+_dropout.add_prim_attr('Seed1', 1)
 def raw_dropout(x, dropout):
     _dropout.add_prim_attr('keep_prob', 1 - dropout)
-    _dropout.add_prim_attr('Seed0', 1)
-    _dropout.add_prim_attr('Seed1', 1)
     return executor.real_run_op(_dropout, 'Dropout', [x])
 
 _dropout_grad = Primitive('DropoutGrad')
