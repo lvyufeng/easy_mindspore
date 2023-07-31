@@ -37,8 +37,8 @@ train_dataset = datapipe(train_dataset, 64)
 test_dataset = datapipe(test_dataset, 64)
 
 
-import torch
-from torch import nn, optim
+# import torch
+# from torch import nn, optim
 # ## 网络构建
 # Define model
 class Network(nn.Module):

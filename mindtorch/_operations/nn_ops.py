@@ -12,6 +12,17 @@ _relu_grad.init_prim_io_names(inputs=['y_backprop', 'x'], outputs=['output'])
 def raw_relu_grad(dout, out):
     return executor.real_run_op(_relu_grad, 'ReluGrad', (dout, out))
 
+_gelu = Primitive('GeLU')
+_gelu.init_prim_io_names(inputs=['x'], outputs=['output'])
+def raw_gelu(x):
+    return executor.real_run_op(_gelu, 'GeLU', (x,))
+
+
+_gelu_grad = Primitive('GeLUGrad')
+_gelu_grad.init_prim_io_names(inputs=['dy', 'x', 'y'], outputs=['z'])
+def raw_gelu_grad(dout, x, out):
+    return executor.real_run_op(_gelu_grad, 'GeLUGrad', (dout, x, out))
+
 _softmax_crossentropy = Primitive('SparseSoftmaxCrossEntropyWithLogits')
 _softmax_crossentropy.init_prim_io_names(inputs=['features', 'labels'], outputs=['output'])
 _softmax_crossentropy.add_prim_attr('sens', 1.0)
@@ -134,3 +145,20 @@ def raw_nll_loss_grad(x, loss_grad, target, weight, total_weight, ignore_index=-
     _nll_loss_grad.add_prim_attr("ignore_index", ignore_index)
     _nll_loss_grad.add_prim_attr("reduction", reduction)
     return executor.real_run_op(_nll_loss_grad, 'NLLLossGrad', [x, loss_grad, target, weight, total_weight])
+
+
+_layer_norm = Primitive("LayerNorm")
+def raw_layer_norm(input, weight, bias, begin_norm_axis=1, begin_params_axis=1, epsilon=1e-7):
+    _layer_norm.add_prim_attr("begin_norm_axis", begin_norm_axis)
+    _layer_norm.add_prim_attr("begin_params_axis", begin_params_axis)
+    _layer_norm.add_prim_attr("epsilon", epsilon)
+
+    return executor.real_run_op(_layer_norm, 'LayerNorm', [input, weight, bias])
+
+
+_layer_norm_grad = Primitive("LayerNormGrad")
+def raw_layer_norm_grad(input, gy, mean, var, weight, begin_norm_axis=1, begin_params_axis=1):
+    # x, dout[0], out[2], out[1], gamma
+    _layer_norm_grad.add_prim_attr("begin_norm_axis", begin_norm_axis)
+    _layer_norm_grad.add_prim_attr("begin_params_axis", begin_params_axis)
+    return executor.real_run_op(_layer_norm, 'LayerNorm', [input, gy, var, mean, weight])

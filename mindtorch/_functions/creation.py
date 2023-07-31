@@ -1,6 +1,6 @@
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_ones, raw_ones_like, raw_zeros, raw_zeros_like, \
-    raw_uniform
+    raw_uniform, raw_normal
 from mindtorch.dtype import *
 
 class Ones(Function):
@@ -42,6 +42,21 @@ def uniform(*shape, dtype=None, requires_grad=False):
     if dtype is None:
         dtype = float32
     return Uniform.apply(shape=shape, requires_grad=requires_grad)
+
+class Normal(Function):
+    @staticmethod
+    def forward(ctx:Context, shape):
+        y = raw_normal(shape)
+        return y
+
+def randn(*shape, dtype=None, requires_grad=False):
+    if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+        shape = shape[0]
+    if dtype is None:
+        dtype = float32
+        out = Normal.apply(shape=shape, requires_grad=requires_grad)
+        return out.to(dtype)
+    return Normal.apply(shape=shape, requires_grad=requires_grad)
 
 class OnesLike(Function):
     @staticmethod

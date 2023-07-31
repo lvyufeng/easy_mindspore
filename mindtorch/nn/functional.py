@@ -1,8 +1,9 @@
+import mindtorch
 from mindtorch import BACKEND
 from .._tensor import Tensor, Dependency
-from mindtorch._functions import ReLU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
+from mindtorch._functions import ReLU, GELU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
     ones, matmul, uniform
-from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss
+from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss, LayerNorm
 
 def make_tuple(inp):
     if isinstance(inp, tuple):
@@ -16,6 +17,12 @@ def linear(x, W, b=None):
 
 def relu(x):
     return ReLU.apply(x)
+
+def gelu(x, approximate):
+    if approximate == 'tanh':
+        return GELU.apply(x)
+    else:
+        return x * 0.5 * (1.0 + mindtorch.erf(x / mindtorch.sqrt(2.0)))
 
 def conv2d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
     weight_shape = weight.shape
@@ -128,3 +135,10 @@ def binary_cross_entropy():
 
 def mean_squard_error():
     pass
+
+def layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
+    norm_ndim = len(normalized_shape)
+    begin_norm_axis = input.ndim - norm_ndim,
+    begin_params_axis = input.ndim - norm_ndim
+    return LayerNorm.apply(input, weight, bias, begin_norm_axis=begin_norm_axis, 
+                           begin_params_axis=begin_params_axis, epsilon=eps)

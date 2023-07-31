@@ -3,7 +3,7 @@ from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentropy, raw_mul, \
     raw_softmax_crossentropy_ascend, raw_matmul, raw_add, raw_conv2d, raw_conv2d_gx, raw_conv2d_gw, \
     raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
-    raw_nll_loss, raw_nll_loss_grad, raw_zeros_like
+    raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad
 
 from mindtorch._functions import utils
 from .array import matmul
@@ -24,6 +24,19 @@ class ReLU(Function):
     def backward(ctx: Context, gy):
         y, = ctx.saved_tensors
         gx = raw_relu_grad(gy.data, y)
+        return tensor(gx)
+
+class GELU(Function):
+    @staticmethod
+    def forward(ctx: Context, x):
+        y = raw_gelu(x)
+        ctx.save_for_backward(x, y)
+        return y
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, y, = ctx.saved_tensors
+        gx = raw_gelu_grad(gy.data, x, y)
         return tensor(gx)
 
 class SoftmaxCrossEntropy(Function):
@@ -226,3 +239,18 @@ class NLLLoss(Function):
         gx = raw_nll_loss_grad(input.data, gy.data, target.data, weight.data,
                                total_weight, ignore_index, reduction)
         return tensor(gx), zeros_like(target), zeros_like(weight)
+
+class LayerNorm(Function):
+    @staticmethod
+    def forward(ctx: Context, input, weight, bias, begin_norm_axis=1, begin_params_axis=1, epsilon=1e-7):
+        out, mean, var = raw_layer_norm(input, weight, bias, begin_norm_axis, begin_params_axis, epsilon)
+        ctx.save_for_backward(mean, var, begin_norm_axis, begin_params_axis)
+        return out
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        input, weight, _ = ctx.inputs
+        mean, var, begin_norm_axis, begin_params_axis = ctx.saved_tensors
+        gx, gw, gb = raw_layer_norm_grad(input.data, gy.data, mean, var, weight.data,
+                                         begin_norm_axis, begin_params_axis)
+        return gx, gw, gb

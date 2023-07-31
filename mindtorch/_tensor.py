@@ -14,7 +14,22 @@ def _uniform(self, a, b):
     self.assign_value_cpp(Array.from_numpy(data))
     self.set_dtype(dtype)
 
+def _fill(self, value):
+    dtype = self.dtype
+    data = np.full(self._shape, value)
+    self.assign_value_cpp(Array.from_numpy(data))
+    self.set_dtype(dtype)
+
+def _zero(self):
+    dtype = self.dtype
+    data = np.zeros(self._shape)
+    self.assign_value_cpp(Array.from_numpy(data))
+    self.set_dtype(dtype)
+    
+
 Array.uniform_ = _uniform
+Array.fill_ = _fill
+Array.zero_ = _zero
 
 class Dependency(NamedTuple):
     tensor: 'Tensor'
@@ -285,6 +300,14 @@ class Tensor:
 
     def uniform_(self, a, b):
         self.data.uniform_(a, b)
+        return self
+
+    def fill_(self, value):
+        self.data.fill_(value)
+        return self
+
+    def zero_(self):
+        self.data.zero_()
         return self
 
     def float(self):

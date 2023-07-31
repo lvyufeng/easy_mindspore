@@ -26,3 +26,11 @@ _uniform.add_prim_attr('seed0', 0)
 _uniform.add_prim_attr('seed2', 0)
 def raw_uniform(shape):
     return executor.real_run_op(_uniform, 'UniformReal', [shape])
+
+
+_normal = Primitive("StandardNormal")
+_normal.init_prim_io_names(inputs=['shape'], outputs=['output'])
+_normal.add_prim_attr('seed0', 0)
+_normal.add_prim_attr('seed2', 0)
+def raw_normal(shape):
+    return executor.real_run_op(_normal, 'StandardNormal', [shape])

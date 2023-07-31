@@ -1,6 +1,6 @@
 import math
 
-import mindtorch
+import mindtorch as torch
 from mindtorch.nn.parameter import Parameter
 from .. import functional as F
 from .module import Module
@@ -32,18 +32,23 @@ class Linear(Module):
         >>> print(output.size())
     """
 
-    def __init__(self, in_features, out_features, bias=True):
-        super(Linear, self).__init__()
+    def __init__(self, in_features, out_features, bias=True,
+                 device=None, dtype=None) -> None:
+        factory_kwargs = {'device': device, 'dtype': dtype}
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = Parameter(mindtorch.Tensor(out_features, in_features))
+        self.weight = Parameter(torch.empty((out_features, in_features), **factory_kwargs))
         if bias:
-            self.bias = Parameter(mindtorch.Tensor(out_features))
+            self.bias = Parameter(torch.empty(out_features, **factory_kwargs))
         else:
             self.register_parameter('bias', None)
         self.reset_parameters()
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
+        # Setting a=sqrt(5) in kaiming_uniform is the same as initializing with
+        # uniform(-1/sqrt(in_features), 1/sqrt(in_features)). For details, see
+        # https://github.com/pytorch/pytorch/issues/57109
         init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         if self.bias is not None:
             fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
@@ -94,7 +99,6 @@ class Bilinear(Module):
         self.in2_features = in2_features
         self.out_features = out_features
         self.weight = Parameter(torch.Tensor(out_features, in1_features, in2_features))
-
         if bias:
             self.bias = Parameter(torch.Tensor(out_features))
         else:
