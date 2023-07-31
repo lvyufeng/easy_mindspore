@@ -201,7 +201,7 @@ def argmax(x, axis):
 class Cast(Function):
     @staticmethod
     def forward(ctx: Context, x, dtype):
-        ctx.save_for_backward(dtype)
+        ctx.save_for_backward(x.dtype)
         return raw_cast(x, dtype)
     
     @staticmethod
