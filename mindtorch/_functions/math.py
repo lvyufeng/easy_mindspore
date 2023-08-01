@@ -1,6 +1,6 @@
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_mul, raw_square, raw_add, raw_neg, raw_sub, \
-    raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log
+    raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log, raw_sqrt
 from .array import sum_to
 from .utils import ensure_tensor
 
@@ -132,6 +132,14 @@ def rdiv(x0, x1):
     x1 = x1.float()
     return div(x1, x0)
 
+class Sqrt(Function):
+    @staticmethod
+    def forward(ctx: Context, x):
+        y = raw_sqrt(x)
+        return y
+
+def sqrt(x):
+    return Sqrt.apply(x)
 
 class Pow(Function):
     @staticmethod

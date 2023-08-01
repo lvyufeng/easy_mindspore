@@ -3,10 +3,10 @@ import mindtorch as torch
 from mindtorch import nn
 from mindtorch import optim
 from mindtorch.utils.data import DataLoader
-import torch
-import torch.nn as nn
-from torch import optim
-from torch.utils.data import DataLoader
+# import torch
+# import torch.nn as nn
+# from torch import optim
+# from torch.utils.data import DataLoader
 import torchvision
 from torchvision.transforms import Compose, ToTensor, Resize
 import numpy as np

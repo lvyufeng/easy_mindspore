@@ -17,6 +17,9 @@ _addcmul = ops.Addcmul()
 def raw_addcmul(input, tensor0, tensor1, value):
     return executor.real_run_op(_addcmul, 'Addcmul', [input, tensor0, tensor1, value])
 
+_addcdiv = ops.Addcdiv()
+def raw_addcdiv(input, tensor0, tensor1, value):
+    return executor.real_run_op(_addcdiv, 'Addcdiv', [input, tensor0, tensor1, value])
 
 _add = ops.Add()
 def raw_add(x, y):

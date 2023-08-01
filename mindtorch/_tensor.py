@@ -280,6 +280,10 @@ class Tensor:
         self.data = mindtorch._operations.raw_addcmul(self.data, tensor1.data, tensor2.data, Array(value))
         return self
 
+    def addcdiv_(self, tensor1, tensor2, value=1):
+        self.data = mindtorch._operations.raw_addcdiv(self.data, tensor1.data, tensor2.data, Array(value))
+        return self
+
     def sqrt_(self):
         self.data = mindtorch._operations.raw_sqrt(self.data)
         return self
@@ -335,9 +339,10 @@ class Tensor:
 
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
-        matmul, get_item, equal, less, le, greater, ge
+        matmul, get_item, equal, less, le, greater, ge, sqrt
     Tensor.add = add
     Tensor.eq = equal
+    Tensor.sqrt = sqrt
     Tensor.__add__ = add
     Tensor.__radd__ = add
     Tensor.__mul__ = mul
