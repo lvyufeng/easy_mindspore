@@ -1,4 +1,3 @@
-import torch
 import mindtorch
 import multiprocessing
 from .sampler import SequentialSampler, RandomSampler, BatchSampler
@@ -66,10 +65,7 @@ def _pin_memory_loop(in_queue, out_queue, done_event):
 def default_collate(batch):
     "Puts each data field into a tensor with outer dimension batch size"
     if mindtorch.is_tensor(batch[0]):
-        return torch.stack(batch, 0)
-    elif torch.is_tensor(batch[0]):
-        out = torch.stack(batch, 0)
-        return mindtorch.tensor(out.numpy())
+        return mindtorch.stack(batch, 0)
     elif type(batch[0]).__module__ == 'numpy':
         elem = batch[0]
         if type(elem).__name__ == 'ndarray':
@@ -83,6 +79,14 @@ def default_collate(batch):
     elif isinstance(batch[0], collections.Sequence):
         transposed = zip(*batch)
         return [default_collate(samples) for samples in transposed]
+    else:
+        try:
+            import torch
+            if torch.is_tensor(batch[0]):
+                out = torch.stack(batch, 0)
+                return mindtorch.tensor(out.numpy())
+        except:
+            pass
 
     raise TypeError(("batch must contain tensors, numbers, dicts or lists; found {}"
                      .format(type(batch[0]))))

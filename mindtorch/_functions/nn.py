@@ -3,10 +3,10 @@ from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentropy, raw_mul, \
     raw_softmax_crossentropy_ascend, raw_matmul, raw_add, raw_conv2d, raw_conv2d_gx, raw_conv2d_gw, \
     raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
-    raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad
+    raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad, \
+    raw_fold, raw_unfold, raw_softmax
 
-from mindtorch._functions import utils
-from .array import matmul
+from .math import matmul
 from .creation import zeros_like
 from .utils import sum_to
 
@@ -38,6 +38,21 @@ class GELU(Function):
         x, y, = ctx.saved_tensors
         gx = raw_gelu_grad(gy.data, x, y)
         return tensor(gx)
+
+class Softmax(Function):
+    @staticmethod
+    def forward(ctx: Context, input, axis):
+        ctx.save_for_backward(axis)
+        return raw_softmax(input, axis)
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        axis, = ctx.saved_values
+        y = ctx.outputs[0]()
+        gx = y * gy
+        sumdx = gx.sum(dim=axis, keepdims=True)
+        gx -= y * sumdx
+        return gx
 
 class SoftmaxCrossEntropy(Function):
     @staticmethod
@@ -253,4 +268,17 @@ class LayerNorm(Function):
         mean, var, begin_norm_axis, begin_params_axis = ctx.saved_tensors
         gx, gw, gb = raw_layer_norm_grad(input.data, gy.data, mean, var, weight.data,
                                          begin_norm_axis, begin_params_axis)
-        return gx, gw, gb
+        return tensor(gx, requires_grad=gy.requires_grad), \
+               tensor(gw, requires_grad=gy.requires_grad), \
+               tensor(gb, requires_grad=gy.requires_grad)
+
+class Unfold(Function):
+    @staticmethod
+    def forward(ctx: Context, input, kernel_size, dilation=1, padding=0, stride=1):
+        return raw_unfold(input, kernel_size, stride, dilation, padding)
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        pass
+
+

@@ -1,8 +1,60 @@
+import numpy as np
+from mindtorch import tensor
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_mul, raw_square, raw_add, raw_neg, raw_sub, \
-    raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log, raw_sqrt
+    raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log, raw_sqrt, raw_matmul, \
+    raw_batch_matmul, raw_sqrt_grad, raw_erf
 from .array import sum_to
 from .utils import ensure_tensor
+
+class MatMul(Function):
+    @staticmethod
+    def forward(ctx: Context, x, w, transpose_a, transpose_b):
+        ctx.save_for_backward(transpose_a, transpose_b)
+        y = raw_matmul(x, w, transpose_a, transpose_b)
+        return y
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, W = ctx.inputs
+        transpose_a, transpose_b = ctx.saved_tensors
+        gx = matmul(gy, W, transpose_b=not transpose_b)
+        gW = matmul(x, gy, transpose_a=not transpose_a)
+        if transpose_a:
+            gx = gx.T
+        if transpose_b:
+            gW = gW.T
+        return gx, gW
+
+
+def matmul(x, w, transpose_a=False, transpose_b=False):
+    return MatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
+
+
+class BatchMatMul(Function):
+    @staticmethod
+    def forward(ctx: Context, x, w, transpose_a, transpose_b):
+        ctx.save_for_backward(transpose_a, transpose_b)
+        y = raw_batch_matmul(x, w, transpose_a, transpose_b)
+        return y
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, W = ctx.inputs
+        transpose_a, transpose_b = ctx.saved_tensors
+        gx = batch_matmul(gy, W, transpose_b=not transpose_b)
+        gW = batch_matmul(x, gy, transpose_a=not transpose_a)
+        if transpose_a:
+            gx = gx.T
+        if transpose_b:
+            gW = gW.T
+        return gx, gW
+
+
+def batch_matmul(x, w, transpose_a=False, transpose_b=False):
+    return BatchMatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
+
+bmm = batch_matmul
 
 class Square(Function):
     @staticmethod
@@ -35,9 +87,12 @@ class Add(Function):
             gx1 = sum_to(gx1, x1_shape)
         return gx0, gx1
 
-def add(x0, x1):
-    x1 = ensure_tensor(x1)
-    return Add.apply(x0, x1)
+def add(input, other, *, alpha=1):
+    other = ensure_tensor(other)
+    if alpha == 1:
+        return Add.apply(input, other)
+    other = other * alpha
+    return Add.apply(input, other)
 
 class Mul(Function):
     @staticmethod
@@ -138,8 +193,35 @@ class Sqrt(Function):
         y = raw_sqrt(x)
         return y
 
+    @staticmethod
+    def backward(ctx: Context, gy):
+        y = ctx.outputs[0]()
+        gx = raw_sqrt_grad(y.data, gy.data)
+        return tensor(gx, requires_grad=gy.requires_grad)
+
 def sqrt(x):
+    x = ensure_tensor(x)
     return Sqrt.apply(x)
+
+class Erf(Function):
+    @staticmethod
+    def forward(ctx: Context, x):
+        y = raw_erf(x)
+        return y
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, = ctx.inputs
+
+        half_root_pi = 2 / sqrt(np.pi)
+        x_square = square(x)
+        gx = gy * half_root_pi * exp(neg(x_square))
+
+        return gx
+
+def erf(x):
+    return Erf.apply(x)
+
 
 class Pow(Function):
     @staticmethod

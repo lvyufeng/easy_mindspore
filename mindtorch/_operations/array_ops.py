@@ -35,6 +35,7 @@ _transpose = ops.Transpose()
 def raw_transpose(x, perm):
     return executor.real_run_op(_transpose, "Transpose", (x, perm))
 
+
 _broadcast_to = Primitive('BroadcastTo')
 def raw_broadcast_to(x, shape):
     _broadcast_to.add_prim_attr("shape", shape)
@@ -87,3 +88,29 @@ def raw_gt(x, y):
 _ge = ops.GreaterEqual()
 def raw_ge(x, y):
     return executor.real_run_op(_ge, "GreaterEqual", (x, y))
+
+_gather = Primitive('Gather')
+_gather.add_prim_attr("batch_dims", 0)
+_gather.init_prim_io_names(inputs=['params', 'indices', 'axis'], outputs=['output'])
+def raw_gather(params, indices, axis):
+    return executor.real_run_op(_gather, "Gather", (params, indices, axis))
+
+_unsorted_segment_sum = Primitive('UnsortedSegmentSum')
+_unsorted_segment_sum.init_prim_io_names(inputs=['x', 'segment_ids', 'num_segments'], outputs=['y'])
+def raw_unsorted_segment_sum(x, segment_ids, num_segments):
+    return executor.real_run_op(_unsorted_segment_sum, "UnsortedSegmentSum", (x, segment_ids, num_segments))
+
+_concat = Primitive('Concat')
+def raw_concat(inputs, axis):
+    _concat.add_prim_attr("axis", axis)
+    return executor.real_run_op(_concat, "Concat", [inputs])
+
+_slice = Primitive('Slice')
+_slice.init_prim_io_names(inputs=['x', 'begin', 'size'], outputs=['output'])
+def raw_slice(x, begin, size):
+    return executor.real_run_op(_slice, "Slice", [x, begin, size])
+
+_masked_fill = Primitive('MaskedFill')
+_masked_fill.init_prim_io_names(inputs=['input', 'mask', 'value'], outputs=['output'])
+def raw_masked_fill(input, mask, value):
+    return executor.real_run_op(_masked_fill, "Slice", [input, mask, value])

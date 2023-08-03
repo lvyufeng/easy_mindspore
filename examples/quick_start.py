@@ -112,12 +112,12 @@ def test(model, dataset, loss_fn):
 # In[13]:
 
 epochs = 3
-start = time.time()
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
+    start = time.time()
     train(model, train_dataset)
+    end = time.time()
+    print('total: ', end - start)
     test(model, test_dataset, loss_fn)
 print("Done!")
-end = time.time()
-print('total: ', end - start)
 

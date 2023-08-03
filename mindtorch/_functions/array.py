@@ -1,10 +1,12 @@
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
     raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
-    raw_cast, raw_log_softmax, raw_log_softmax_grad, raw_lt, raw_le, raw_ne, raw_gt, raw_ge
+    raw_cast, raw_log_softmax, raw_log_softmax_grad, raw_lt, raw_le, raw_ne, raw_gt, raw_ge, \
+    raw_gather, raw_unsorted_segment_sum, raw_concat, raw_slice
 from mindtorch._functions import utils
 from mindtorch import dtype, tensor, Tensor
 from .utils import ensure_tensor
+from .creation import zeros_like
 # =============================================================================
 # Tensor operations: reshape / transpose / expand_dims / flatten
 # =============================================================================
@@ -50,22 +52,45 @@ class Transpose(Function):
     def backward(ctx: Context, gy):
         axes, = ctx.saved_values
         if axes is None:
-            return transpose(gy)
+            return _transpose(gy)
 
         axes_len = len(axes)
         inv_axes = utils.argsort([ax % axes_len for ax in axes])
-        return transpose(gy, inv_axes)
+        return _transpose(gy, tuple(inv_axes))
 
 
-def transpose(x, axes=None):
+def _transpose(x, axes=None):
     if axes is None:
         axes = (1, 0)
     return Transpose.apply(x, axes=axes)
+
+def permute(input, dims):
+    return _transpose(input, dims)
+
+def transpose(input, dim0, dim1):
+    axes = list(range(input.ndim))
+    if dim0 < 0:
+        dim0 = input.ndim + dim0
+    if dim1 < 0:
+        dim1 = input.ndim + dim1
+    axes[dim0] = dim1
+    axes[dim1] = dim0
+    return _transpose(input, tuple(axes))
 
 def expand_dims(x, axis):
     shape = list(x.shape)
     shape.insert(axis, 1)
     return reshape(x, tuple(shape))
+
+def squeeze(x, dim=None):
+    shape = x.shape
+    if dim is None:
+        new_shape = tuple([s for s in shape if s != 1 ])
+    else:
+        new_shape = list(shape)
+        new_shape.pop(dim)
+        new_shape = tuple(new_shape)
+    return reshape(x, new_shape)
 
 # =============================================================================
 # sum / sum_to / broadcast_to / average / matmul / linear
@@ -84,13 +109,13 @@ class Sum(Function):
         gx = broadcast_to(gy, x_shape)
         return gx
 
-def sum(x, axis=None, keepdims=False):
+def sum(x, dim=None, keepdims=False):
     if x.dtype == dtype.bool:
         x = x.long()
-    return Sum.apply(x, axis=axis, keepdims=keepdims)
+    return Sum.apply(x, axis=dim, keepdims=keepdims)
 
-def mean(x, axis=None, keepdims=False):
-    y = sum(x, axis, keepdims)
+def mean(x, dim=None, keepdims=False):
+    y = sum(x, dim, keepdims)
     return y * (y.data._size / x.data._size)
 
 class SumTo(Function):
@@ -132,51 +157,25 @@ def broadcast_to(x, shape):
         return x
     return BroadcastTo.apply(x, shape=shape)
 
-
-class MatMul(Function):
-    @staticmethod
-    def forward(ctx: Context, x, w, transpose_a, transpose_b):
-        ctx.save_for_backward(transpose_a, transpose_b)
-        y = raw_matmul(x, w, transpose_a, transpose_b)
-        return y
-
-    @staticmethod
-    def backward(ctx: Context, gy):
-        x, W = ctx.inputs
-        transpose_a, transpose_b = ctx.saved_tensors
-        gx = matmul(gy, W, transpose_b=not transpose_b)
-        gW = matmul(x, gy, transpose_a=not transpose_a)
-        if transpose_a:
-            gx = gx.T
-        if transpose_b:
-            gW = gW.T
-        return gx, gW
-
-
-def matmul(x, w, transpose_a=False, transpose_b=False):
-    return MatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
-
-
 class GetItem(Function):
     @staticmethod
     def forward(ctx: Context, x, slices):
-        ctx.save_for_backward(slices, x._shape)
         slices = utils.slice_helper(slices)
+        ctx.save_for_backward(slices, x._shape)
         y = raw_strided_slice(x, *slices)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         slices, x_shape = ctx.saved_values
-        f = GetItemGrad(slices, x_shape)
-        return f(gy)
+        return get_item_grad(gy, slices, x_shape)
 
 
 class GetItemGrad(Function):
     @staticmethod
     def forward(ctx: Context, gy, slices, in_shape):
+        # slices = utils.slice_helper(slices)
         ctx.save_for_backward(slices)
-        slices = utils.slice_helper(slices)
         gx = raw_strided_slice_grad(gy, in_shape, *slices)
         return gx
 
@@ -188,6 +187,9 @@ class GetItemGrad(Function):
 
 def get_item(x, slices):
     return GetItem.apply(x, slices=slices)
+
+def get_item_grad(gy, slices, x_shape):
+    return GetItemGrad.apply(gy, slices=slices, in_shape=x_shape)
 
 class Argmax(Function):
     @staticmethod
@@ -277,4 +279,70 @@ def ge(x, y):
         return GreaterEqual.apply(x, y, requires_grad=False)
     return GreaterEqual.apply(x, y=y, requires_grad=False)
 
+class Gather(Function):
+    @staticmethod
+    def forward(ctx: Context, params, indices, axis):
+        ctx.save_for_backward(axis)
+        return raw_gather(params, indices, axis)
+
+    @staticmethod
+    def backward(ctx: Context, dout):
+        params, indices = ctx.inputs
+        axis, = ctx.saved_values
+
+        orig_indices = indices
+        if dout.ndim == 0:
+            dout = expand_dims(dout, -1)
+
+        if indices.ndim == 0:
+            indices = expand_dims(indices, -1)
+            out_shp = utils._regenerate_output_shape(params.shape, indices.shape, axis)
+            dout = reshape(dout, out_shp)
+
+        x_shp = params.shape
+        out_shp = dout.shape
+        ind_shp = indices.shape
+        # Example: out_shape:(3,2,3) axis 1 -> (1,0,2)
+        perm_1 = utils.generate_shape_index(out_shp, ind_shp, axis)
+        values_transpose = _transpose(dout, perm_1)
+        params_grad = raw_unsorted_segment_sum(values_transpose.data, indices.data, params.shape[axis])
+        # Example: out_shape:(3,2,3) axis 2 -> (1,2,0)
+        perm_2 = utils._generate_inverse_index(x_shp, axis)
+        params_grad = raw_transpose(params_grad, perm_2)
+        return tensor(params_grad, dout.requires_grad), zeros_like(orig_indices)
+
+def gather(params, indices, axis):
+    return Gather.apply(params, indices, axis=axis)
+
+class Concat(Function):
+    @staticmethod
+    def forward(ctx: Context, *inputs, dim):
+        input_sizes = [i.shape[dim] for i in inputs]
+        ctx.save_for_backward(dim, tuple(input_sizes))
+        return raw_concat(inputs, dim)
+
+    @staticmethod
+    def backward(ctx: Context, grad_output):
+        dim, input_sizes = ctx.saved_values
+        return tuple(narrow(grad_output, dim, end - size, size) for size, end
+                            in zip(input_sizes, utils._accumulate(input_sizes)))
+
+def cat(tensors, dim=0):
+    return Concat.apply(*tensors, dim=dim)
+
+class Slice(Function):
+    @staticmethod
+    def forward(ctx: Context, input, begin, size):
+        ctx.save_for_backward(begin, size)
+        return raw_slice(input, begin, size)
+
+def slice(input, begin, size):
+    return Slice.apply(input, begin=begin, size=size)
+
+def narrow(input, axis, start, length):
+    begins = [0] * input.ndim
+    begins[axis] = start
+    sizes = list(input.shape)
+    sizes[axis] = length
+    return slice(input, begins, sizes)
 

@@ -55,7 +55,7 @@ class Adadelta(Optimizer):
                 state['step'] += 1
 
                 if group['weight_decay'] != 0:
-                    grad = grad.add(group['weight_decay'], p.data)
+                    grad = grad.add(p, alpha=group['weight_decay'])
 
                 # square_avg.mul_(rho).addcmul_(grad, grad, value=1-rho)
                 # std = square_avg.add(eps).sqrt_()

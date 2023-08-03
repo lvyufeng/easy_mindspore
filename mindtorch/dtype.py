@@ -16,3 +16,6 @@ int = int32
 int64 = typing.Int(64)
 long = int64
 bool = typing.Bool()
+
+def is_floating_point(x):
+    return isinstance(x.dtype, typing.Float)

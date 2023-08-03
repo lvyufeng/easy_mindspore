@@ -6,7 +6,7 @@ from mindspore.common.api import _pynative_executor as executor
 import mindtorch
 from mindtorch.config import using_config
 from mindtorch import dtype
-from .utils import NORMAL_DTYPE_MAP
+from .utils import NORMAL_DTYPE_MAP, _get_unfold_indices
 
 def _uniform(self, a, b):
     dtype = self.dtype
@@ -108,7 +108,7 @@ class Tensor:
 
     @property
     def T(self):
-        return mindtorch._functions.transpose(self)
+        return mindtorch._functions.transpose(self, 0, 1)
 
     @property
     def shape(self):
@@ -211,11 +211,11 @@ class Tensor:
     def view_as(self, other):
         return self.reshape(other.shape)
 
-    def sum(self, axis=None, keepdims=False):
-        return mindtorch._functions.sum(self, axis, keepdims)
+    def sum(self, dim=None, keepdims=False):
+        return mindtorch._functions.sum(self, dim, keepdims)
 
-    def mean(self, axis=None, keepdims=False):
-        return mindtorch._functions.mean(self, axis, keepdims)
+    def mean(self, dim=None, keepdims=False):
+        return mindtorch._functions.mean(self, dim, keepdims)
 
     def flatten(self, start_dim=0, end_dim=-1):
         return mindtorch._functions.flatten(self, start_dim, end_dim)
@@ -231,6 +231,27 @@ class Tensor:
 
     def unsqueeze(self, dim):
         return mindtorch._functions.expand_dims(self, dim)
+
+    def squeeze(self, dim):
+        return mindtorch._functions.squeeze(self, dim)
+
+    def unfold(self, dimension, size, step):
+        _indices, _dimension = _get_unfold_indices(self.shape, dimension, size, step)
+        output = mindtorch._functions.gather(self, _indices, axis=_dimension)
+        return mindtorch._functions.transpose(output, _dimension + 1, -1)
+
+    def permute(self, *dims):
+        return mindtorch._functions.permute(self, dims)
+
+    def transpose(self, dim0, dim1):
+        return mindtorch._functions.transpose(self, dim0, dim1)
+
+
+    def view(self, *size):
+        return self.reshape(*size)
+
+    def contiguous(self):
+        return self
 
     def cuda(self):
         return self
@@ -312,6 +333,10 @@ class Tensor:
 
     def zero_(self):
         self.data.zero_()
+        return self
+
+    def masked_fill_(self, mask, value):
+        self.data = mindtorch._operations.raw_masked_fill(self.data, mask, value)
         return self
 
     def float(self):

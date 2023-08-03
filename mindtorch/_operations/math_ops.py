@@ -45,6 +45,11 @@ _sqrt = ops.Sqrt()
 def raw_sqrt(x):
     return executor.real_run_op(_sqrt, 'Sqrt', [x])
 
+_sqrt_grad = Primitive('SqrtGrad')
+_sqrt_grad.init_prim_io_names(inputs=['y', 'dy'], outputs=['z'])
+def raw_sqrt_grad(y, dy):
+    return executor.real_run_op(_sqrt_grad, 'SqrtGrad', [y, dy])
+
 _sin = ops.Sin()
 def raw_sin(x):
     return executor.real_run_op(_sin, 'Sin', [x])
@@ -60,6 +65,10 @@ def raw_tanh(x):
 _exp = ops.Exp()
 def raw_exp(x):
     return executor.real_run_op(_exp, 'Exp', [x])
+
+_erf = ops.Erf()
+def raw_erf(x):
+    return executor.real_run_op(_erf, 'Erf', [x])
 
 _log = ops.Log()
 def raw_log(x):
@@ -97,6 +106,18 @@ def raw_matmul(x, y, transpose_a=False, transpose_b=False):
         return out
 
     return executor.real_run_op(matmul_op, "MatMul", (x, y))
+
+_batch_matmul = Primitive('BatchMatMul')
+_batch_matmul.init_prim_io_names(inputs=['x1', 'x2'], outputs=['output'])
+def raw_batch_matmul(x, y, transpose_a=False, transpose_b=False):
+    _batch_matmul.add_prim_attr('transpose_a', transpose_a)
+    _batch_matmul.add_prim_attr('transpose_b', transpose_b)
+    if BACKEND == 'Ascend':
+        _batch_matmul.add_prim_attr('adj_x1', transpose_a)
+        _batch_matmul.add_prim_attr('adj_x2', transpose_b)
+
+    return executor.real_run_op(_batch_matmul, "BatchMatMul", (x, y))
+
 
 stridedslice_op = Primitive('StridedSlice')
 stridedslice_op.init_prim_io_names(inputs=['x', 'begin', 'end', 'strides'], outputs=['output'])

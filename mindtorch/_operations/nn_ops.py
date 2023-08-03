@@ -161,4 +161,33 @@ def raw_layer_norm_grad(input, gy, mean, var, weight, begin_norm_axis=1, begin_p
     # x, dout[0], out[2], out[1], gamma
     _layer_norm_grad.add_prim_attr("begin_norm_axis", begin_norm_axis)
     _layer_norm_grad.add_prim_attr("begin_params_axis", begin_params_axis)
-    return executor.real_run_op(_layer_norm, 'LayerNorm', [input, gy, var, mean, weight])
+    return executor.real_run_op(_layer_norm_grad, 'LayerNormGrad', [input, gy, var, mean, weight])
+
+_unfold = Primitive('Im2Col')
+_unfold.init_prim_io_names(inputs=['x'], outputs=['y'])
+def raw_unfold(x, ksizes, strides=1, dilations=1, pads=0):
+    _unfold.add_prim_attr('ksizes', ksizes)
+    _unfold.add_prim_attr('strides', strides)
+    _unfold.add_prim_attr('dilations', dilations)
+    _unfold.add_prim_attr('pads', pads)
+    _unfold.add_prim_attr('padding_mode', "CALCULATED")
+    return executor.real_run_op(_unfold, 'Im2Col', [x])
+
+
+_fold = Primitive('Col2Im')
+_fold.init_prim_io_names(inputs=['x', 'output_size'], outputs=['y'])
+def raw_fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    _fold.add_prim_attr('kernel_size', kernel_size)
+    _fold.add_prim_attr('dilation', dilation)
+    _fold.add_prim_attr('padding', padding)
+    _fold.add_prim_attr('stride', stride)
+    return executor.real_run_op(_fold, 'Col2Im', [x, output_size])
+
+_softmax = Primitive('Softmax')
+_softmax.init_prim_io_names(inputs=['x'], outputs=['output'])
+def raw_softmax(input, axis):
+    if not isinstance(axis, tuple):
+        axis = (axis,)
+    _softmax.add_prim_attr('axis', axis)
+    return executor.real_run_op(_softmax, 'Softmax', [input])
+

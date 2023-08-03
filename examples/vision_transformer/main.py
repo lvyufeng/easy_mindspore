@@ -11,7 +11,7 @@ import torchvision
 from torchvision.transforms import Compose, ToTensor, Resize
 import numpy as np
 from tqdm import tqdm
-
+import time
 
 class PatchExtractor(nn.Module):
     def __init__(self, patch_size=16):
@@ -149,10 +149,13 @@ class TrainEval:
             images, labels = data
             images, labels = images.to(self.device), labels.to(self.device)
             self.optimizer.zero_grad()
+            s = time.time()
             logits = self.model(images)
             loss = self.criterion(logits, labels)
             loss.backward()
             self.optimizer.step()
+            t = time.time()
+            print(t - s)
 
             total_loss += loss.item()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
@@ -257,7 +260,8 @@ def main():
 
     model = ViT(args).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.Adadelta(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss()
 
     TrainEval(args, model, train_loader, valid_loader, optimizer, criterion, device).train()

@@ -109,3 +109,43 @@ def slice_helper(slice_spec):
         index += 1
         
     return begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask
+
+def _regenerate_output_shape(x_shp, ind_shp, axis):
+    rank = len(x_shp)
+    if axis < 0:
+        axis += rank
+    out_shape = x_shp[:axis] + ind_shp + x_shp[axis + 1:]
+    return out_shape
+
+def generate_shape_index(out_shape, indices_shape, axis):
+    out_rank = len(out_shape)
+    ind_rank = len(indices_shape)
+    if axis < 0:
+        axis += out_rank - ind_rank + 1
+    perm_part1 = tuple(range(axis, axis + ind_rank))
+    index = tuple(range(out_rank))
+    perm = perm_part1 + index[:axis] + index[axis + ind_rank:]
+    return perm
+
+def _generate_inverse_index(x_shape, axis):
+    x_rank = len(x_shape)
+    index = tuple(range(x_rank))
+    if axis < 0:
+        axis += x_rank
+    perm = index[1:1 + axis] + (0,) + index[1 + axis:]
+    return perm
+
+# Taken from python 3.5 docs
+def _accumulate(iterable, fn=lambda x, y: x + y):
+    'Return running totals'
+    # _accumulate([1,2,3,4,5]) --> 1 3 6 10 15
+    # _accumulate([1,2,3,4,5], operator.mul) --> 1 2 6 24 120
+    it = iter(iterable)
+    try:
+        total = next(it)
+    except StopIteration:
+        return
+    yield total
+    for element in it:
+        total = fn(total, element)
+        yield total
