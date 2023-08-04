@@ -54,7 +54,7 @@ class Function:
 
         # Call forward with the variables.
         ys = cls._forward(ctx, *raw_vals, **kwargs)
-        
+
         outputs = [Tensor(y, requires_grad=requires_grad) for y in ys]
 
         if requires_grad: # cut useless nodes

@@ -2,7 +2,6 @@ import numpy as np
 from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
 from mindspore.common.api import _pynative_executor as executor
-
 import mindtorch
 from mindtorch.config import using_config
 from mindtorch import dtype

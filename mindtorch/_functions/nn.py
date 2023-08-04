@@ -4,7 +4,7 @@ from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentr
     raw_softmax_crossentropy_ascend, raw_matmul, raw_add, raw_conv2d, raw_conv2d_gx, raw_conv2d_gw, \
     raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
     raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad, \
-    raw_fold, raw_unfold, raw_softmax
+    raw_fold, raw_unfold, raw_softmax, fused_linear, fused_linear_grad
 
 from .math import matmul
 from .creation import zeros_like
@@ -86,18 +86,21 @@ class SoftmaxCrossEntropyAscend(Function):
 class Linear(Function):
     @staticmethod
     def forward(ctx: Context, x, w, b):
-        y = raw_matmul(x, w, transpose_b=True)
-        if b is not None:
-            y = raw_add(y, b)
+        # y = raw_matmul(x, w, transpose_b=True)
+        # if b is not None:
+        #     y = raw_add(y, b)
+        y = fused_linear(x, w, b)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         x, W, b = ctx.inputs
-        gb = None if b.data is None else sum_to(gy, b.shape)
-        gx = matmul(gy, W)
-        gW = matmul(x, gy, transpose_a=True)
-        return gx, gW.T, gb
+        # gb = None if b.data is None else sum_to(gy.data, b.shape)
+        # gx = matmul(gy, W)
+        # gW = matmul(x, gy, transpose_a=True)
+        # return gx, gW.T, tensor(gb)
+        gx, gw, gb = fused_linear_grad(x.data, W.data, b.data, gy.data)
+        return tensor(gx), tensor(gw), tensor(gb)
 
 class Conv2d(Function):
     @staticmethod

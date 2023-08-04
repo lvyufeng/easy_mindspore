@@ -17,13 +17,15 @@ def make_tuple(inp):
         return (1, 1, inp, inp)
 
 def linear(x, W, b=None):
-    # return Linear.apply(x, W, b)
-    x_shape = x.shape
-    if x.ndim > 2:
-        x = x.reshape(-1, x.shape[-1])
-        out = _bias_add(matmul(x, W, transpose_b=True), b)
-        return out.reshape(*x_shape[:-1], -1)
-    return _bias_add(matmul(x, W, transpose_b=True), b)
+    if b is None:
+        return matmul(x, W, transpose_b=True)
+    return Linear.apply(x, W, b)
+    # x_shape = x.shape
+    # if x.ndim > 2:
+    #     x = x.reshape(-1, x.shape[-1])
+    #     out = _bias_add(matmul(x, W, transpose_b=True), b)
+    #     return out.reshape(*x_shape[:-1], -1)
+    # return _bias_add(matmul(x, W, transpose_b=True), b)
 
 def relu(x):
     return ReLU.apply(x)
@@ -70,11 +72,11 @@ def dropout(x: Tensor, p:int=0.5, training:bool=True) -> Tensor:
     http://arxiv.org/abs/1207.0580
     """
     if training and p != 0:
-        return Dropout.apply(x, dropout=p)
-        # mask = uniform(x.shape) > p
-        # scale = 1 - p
-        # y = x * mask / scale
-        # return y
+        # return Dropout.apply(x, dropout=p)
+        mask = uniform(x.shape) > p
+        scale = 1 - p
+        y = x * mask / scale
+        return y
     else:
         return x
 

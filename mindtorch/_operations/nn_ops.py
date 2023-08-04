@@ -191,3 +191,40 @@ def raw_softmax(input, axis):
     _softmax.add_prim_attr('axis', axis)
     return executor.real_run_op(_softmax, 'Softmax', [input])
 
+from mindspore.ops._tracefunc import PackFunc, PackExpander
+
+_fused_linear_matmul = ops.MatMul(transpose_b=True)
+_fused_linear_add = ops.BiasAdd()
+def _pack_linear(x, y, b):
+    x_shape = x.shape
+    if x.ndim != 2:
+        x = x.reshape(-1, x_shape[-1])
+    out = _fused_linear_matmul(x, y)
+    out = _fused_linear_add(out, b)
+    out = out.reshape(*x_shape[:-1], out.shape[-1])
+    return out
+
+_fused_linear = PackFunc(_pack_linear, str(id(_pack_linear)), None, True)
+def fused_linear(x, w, b):
+    return executor.real_run_op(_fused_linear, 'PackFuc', [x, w, b])
+
+_grad_matmul = ops.MatMul()
+_grad_matmul_1 = ops.MatMul(transpose_a=True)
+def _pack_linear_grad(x, w, b, gy):
+    ndim = len(b.shape)
+    lead = gy.ndim - ndim
+    lead_axis = tuple(range(lead))
+
+    axis = tuple([i + lead for i, sx in enumerate(b.shape) if sx == 1])
+    gb = gy.sum(lead_axis + axis, keepdims=True)
+    if lead > 0:
+        gb = gb.squeeze(lead_axis)
+
+    gx = _grad_matmul(gy, w)
+    gW = _grad_matmul_1(x, gy)
+    return gx, gW.T, gb
+
+
+_fused_linear_grad = PackFunc(_pack_linear_grad, str(id(_pack_linear_grad)), None, True)
+def fused_linear_grad(x, w, b, gy):
+    return executor.real_run_op(_fused_linear_grad, 'PackFuc', [x, w, b, gy])

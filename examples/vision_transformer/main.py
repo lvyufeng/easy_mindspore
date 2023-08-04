@@ -12,6 +12,8 @@ from torchvision.transforms import Compose, ToTensor, Resize
 import numpy as np
 from tqdm import tqdm
 import time
+from mindspore._c_expression import _framework_profiler_step_start
+from mindspore._c_expression import _framework_profiler_step_end
 
 class PatchExtractor(nn.Module):
     def __init__(self, patch_size=16):
@@ -146,6 +148,7 @@ class TrainEval:
         tk = tqdm(self.train_dataloader, desc="EPOCH" + "[TRAIN]" + str(current_epoch + 1) + "/" + str(self.epoch))
 
         for t, data in enumerate(tk):
+            _framework_profiler_step_start()
             images, labels = data
             images, labels = images.to(self.device), labels.to(self.device)
             self.optimizer.zero_grad()
@@ -154,6 +157,7 @@ class TrainEval:
             loss = self.criterion(logits, labels)
             loss.backward()
             self.optimizer.step()
+            _framework_profiler_step_end()
             t = time.time()
             print(t - s)
 
@@ -191,7 +195,7 @@ class TrainEval:
             val_loss = self.eval_fn(i)
 
             if val_loss < best_valid_loss:
-                torch.save(self.model.state_dict(), "best-weights.pt")
+                # torch.save(self.model.state_dict(), "best-weights.pt")
                 print("Saved Best Weights")
                 best_valid_loss = val_loss
                 best_train_loss = train_loss
@@ -260,8 +264,8 @@ def main():
 
     model = ViT(args).to(device)
 
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    # optimizer = optim.Adadelta(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss()
 
     TrainEval(args, model, train_loader, valid_loader, optimizer, criterion, device).train()
