@@ -8,7 +8,7 @@ from .._tensor import Tensor, Dependency
 from mindtorch._functions import ReLU, GELU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
     ones, matmul, uniform
 from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss, LayerNorm, \
-    Unfold, Softmax
+    Unfold, Softmax, GELUErf
 
 def make_tuple(inp):
     if isinstance(inp, tuple):
@@ -18,7 +18,8 @@ def make_tuple(inp):
 
 def linear(x, W, b=None):
     if b is None:
-        return matmul(x, W, transpose_b=True)
+        # return matmul(x, W, transpose_b=True)
+        b = mindtorch.zeros(W.shape[-1], W.dtype)
     return Linear.apply(x, W, b)
     # x_shape = x.shape
     # if x.ndim > 2:
@@ -34,7 +35,8 @@ def gelu(x, approximate):
     if approximate == 'tanh':
         return GELU.apply(x)
     else:
-        return x * 0.5 * (1.0 + mindtorch.erf(x / mindtorch.sqrt(2.0)))
+        # return x * 0.5 * (1.0 + mindtorch.erf(x / mindtorch.sqrt(2.0)))
+        return GELUErf.apply(x)
 
 def conv2d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
     weight_shape = weight.shape
@@ -72,11 +74,11 @@ def dropout(x: Tensor, p:int=0.5, training:bool=True) -> Tensor:
     http://arxiv.org/abs/1207.0580
     """
     if training and p != 0:
-        # return Dropout.apply(x, dropout=p)
-        mask = uniform(x.shape) > p
-        scale = 1 - p
-        y = x * mask / scale
-        return y
+        return Dropout.apply(x, dropout=p)
+        # mask = uniform(x.shape) > p
+        # scale = 1 - p
+        # y = x * mask / scale
+        # return y
     else:
         return x
 

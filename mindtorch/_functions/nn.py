@@ -4,7 +4,8 @@ from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentr
     raw_softmax_crossentropy_ascend, raw_matmul, raw_add, raw_conv2d, raw_conv2d_gx, raw_conv2d_gw, \
     raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
     raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad, \
-    raw_fold, raw_unfold, raw_softmax, fused_linear, fused_linear_grad
+    raw_fold, raw_unfold, raw_softmax, fused_linear, fused_linear_grad, fused_gelu_erf, fused_gelu_erf_grad, \
+    fused_softmax_grad, fused_dropout, fused_dropout_grad
 
 from .math import matmul
 from .creation import zeros_like
@@ -39,6 +40,18 @@ class GELU(Function):
         gx = raw_gelu_grad(gy.data, x, y)
         return tensor(gx)
 
+class GELUErf(Function):
+    @staticmethod
+    def forward(ctx: Context, x):
+        y = fused_gelu_erf(x)
+        return y
+
+    @staticmethod
+    def backward(ctx: Context, gy):
+        x, _ = ctx.inputs
+        gx = fused_gelu_erf_grad(x.data, gy.data)
+        return tensor(gx)
+
 class Softmax(Function):
     @staticmethod
     def forward(ctx: Context, input, axis):
@@ -49,10 +62,12 @@ class Softmax(Function):
     def backward(ctx: Context, gy):
         axis, = ctx.saved_values
         y = ctx.outputs[0]()
-        gx = y * gy
-        sumdx = gx.sum(dim=axis, keepdims=True)
-        gx -= y * sumdx
-        return gx
+        # gx = y * gy
+        # sumdx = gx.sum(dim=axis, keepdims=True)
+        # gx -= y * sumdx
+        # return gx
+        gx = fused_softmax_grad(y.data, gy.data, axis)
+        return tensor(gx)
 
 class SoftmaxCrossEntropy(Function):
     @staticmethod
@@ -183,18 +198,32 @@ class BiasAdd(Function):
 def _bias_add(x, b):
     return BiasAdd.apply(x, b)
 
+# class Dropout(Function):
+#     @staticmethod
+#     def forward(ctx: Context, x, dropout):
+#         y, mask = raw_dropout(x, dropout)
+#         ctx.save_for_backward(mask, dropout)
+#         return y
+
+#     @staticmethod
+#     def backward(ctx: Context, gy):
+#         mask, dropout = ctx.saved_tensors
+#         gx = _dropout_grad(gy, tensor(mask), dropout)
+#         return gx
+
 class Dropout(Function):
     @staticmethod
     def forward(ctx: Context, x, dropout):
-        y, mask = raw_dropout(x, dropout)
+        y, mask = fused_dropout(x, dropout)
         ctx.save_for_backward(mask, dropout)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         mask, dropout = ctx.saved_tensors
-        gx = _dropout_grad(gy, tensor(mask), dropout)
-        return gx
+        gx = fused_dropout_grad(gy.data, mask, dropout)
+        return tensor(gx)
+
 
 class DropoutGrad(Function):
     @staticmethod

@@ -2,7 +2,7 @@ from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
     raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
     raw_cast, raw_log_softmax, raw_log_softmax_grad, raw_lt, raw_le, raw_ne, raw_gt, raw_ge, \
-    raw_gather, raw_unsorted_segment_sum, raw_concat, raw_slice
+    raw_gather, raw_unsorted_segment_sum, raw_concat, raw_slice, fused_sum_grad
 from mindtorch._functions import utils
 from mindtorch import dtype, tensor, Tensor
 from .utils import ensure_tensor
@@ -105,9 +105,11 @@ class Sum(Function):
     @staticmethod
     def backward(ctx: Context, gy):
         x_shape, axis, keepdims = ctx.saved_values
-        gy = utils.reshape_sum_backward(gy, x_shape, axis, keepdims)
-        gx = broadcast_to(gy, x_shape)
-        return gx
+        # gy = utils.reshape_sum_backward(gy, x_shape, axis, keepdims)
+        # gx = broadcast_to(gy, x_shape)
+        # return gx
+        gx = fused_sum_grad(gy.data, x_shape, axis, keepdims)
+        return tensor(gx)
 
 def sum(x, dim=None, keepdims=False):
     if x.dtype == dtype.bool:

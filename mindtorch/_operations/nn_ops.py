@@ -1,6 +1,8 @@
+import math
 from mindspore import ops
 from mindspore.ops import Primitive
 from mindspore.common.api import _pynative_executor as executor
+from mindspore.ops._tracefunc import PackFunc
 
 _relu = Primitive('ReLU')
 _relu.init_prim_io_names(inputs=['x'], outputs=['output'])
@@ -191,8 +193,6 @@ def raw_softmax(input, axis):
     _softmax.add_prim_attr('axis', axis)
     return executor.real_run_op(_softmax, 'Softmax', [input])
 
-from mindspore.ops._tracefunc import PackFunc, PackExpander
-
 _fused_linear_matmul = ops.MatMul(transpose_b=True)
 _fused_linear_add = ops.BiasAdd()
 def _pack_linear(x, y, b):
@@ -220,7 +220,13 @@ def _pack_linear_grad(x, w, b, gy):
     if lead > 0:
         gb = gb.squeeze(lead_axis)
 
+    x_shape = x.shape
+    if gy.ndim != 2:
+        gy = gy.reshape(-1, gy.shape[-1])
+    if x.ndim != 2:
+        x = x.reshape(-1, x_shape[-1])
     gx = _grad_matmul(gy, w)
+    gx = gx.reshape(*x_shape[:-1], gx.shape[-1])
     gW = _grad_matmul_1(x, gy)
     return gx, gW.T, gb
 
@@ -228,3 +234,47 @@ def _pack_linear_grad(x, w, b, gy):
 _fused_linear_grad = PackFunc(_pack_linear_grad, str(id(_pack_linear_grad)), None, True)
 def fused_linear_grad(x, w, b, gy):
     return executor.real_run_op(_fused_linear_grad, 'PackFuc', [x, w, b, gy])
+
+def _pack_gelu_erf(x):
+    return 0.5 * x * (1 + ops.erf(x / ops.sqrt(ops.cast(2, x.dtype))))
+
+_fused_gelu_erf = PackFunc(_pack_gelu_erf, str(id(_pack_gelu_erf)), None, True)
+def fused_gelu_erf(x):
+    return executor.real_run_op(_fused_gelu_erf, 'PackFuc', [x])
+
+def _pack_gelu_erf_grad(x, dy):
+    gelu_derivative =  0.5 * (1 + ops.erf(x / ops.sqrt(ops.cast(2, x.dtype)))) + \
+        0.5 * x * ops.exp(-x**2 / 2) / ops.sqrt(ops.cast(2 * math.pi, x.dtype))
+    return dy * gelu_derivative
+
+_fused_gelu_erf_grad = PackFunc(_pack_gelu_erf_grad, str(id(_pack_gelu_erf_grad)), None, True)
+def fused_gelu_erf_grad(x, dy):
+    return executor.real_run_op(_fused_gelu_erf_grad, 'PackFuc', [x, dy])
+
+def _pack_softmax_grad(y, gy, axis):
+    gx = y * gy
+    sumdx = gx.sum(axis=axis, keepdims=True)
+    gx -= y * sumdx
+    return gx
+
+_fused_softmax_grad = PackFunc(_pack_softmax_grad, str(id(_pack_softmax_grad)), None, True)
+def fused_softmax_grad(y, gy, axis):
+    return executor.real_run_op(_fused_softmax_grad, 'PackFuc', [y, gy, axis])
+
+def _pack_dropout(x, p):
+    mask = ops.randn(x.shape) > p
+    scale = 1 - p
+    y = x * mask / scale
+    return y, mask
+
+_fused_dropout = PackFunc(_pack_dropout, str(id(_pack_dropout)), None, True)
+def fused_dropout(x, p):
+    return executor.real_run_op(_fused_dropout, 'PackFuc', [x, p])
+
+def _pack_dropout_grad(gy, mask, p):
+    dx = gy * mask / (1 - p)
+    return dx
+_fused_dropout_grad = PackFunc(_pack_dropout_grad, str(id(_pack_dropout_grad)), None, True)
+def fused_dropout_grad(gy, mask, p):
+    return executor.real_run_op(_fused_dropout_grad, 'PackFuc', [gy, mask, p])
+

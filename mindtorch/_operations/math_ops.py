@@ -3,6 +3,7 @@ from mindspore.ops import Primitive, PrimitiveWithInfer
 from mindspore.common.api import _pynative_executor as executor
 from mindtorch import BACKEND
 from .array_ops import raw_squeeze, raw_unsqueeze
+from mindspore.ops._tracefunc import PackFunc
 
 _sum = Primitive('ReduceSum')
 _sum.init_prim_io_names(inputs=['input_x', 'axis'], outputs=['y'])
@@ -12,6 +13,31 @@ def raw_sum(x, axis=None, keepdims=False):
     if axis is None:
         axis = ()
     return executor.real_run_op(_sum, 'ReduceSum', [x, axis])
+
+def _pack_sum_grad(gy, x_shape, axis, keepdims):
+    ndim = len(x_shape)
+    tupled_axis = axis
+    if axis is None:
+        tupled_axis = None
+    elif not isinstance(axis, tuple):
+        tupled_axis = (axis,)
+
+    if not (ndim == 0 or tupled_axis is None or keepdims):
+        actual_axis = [a if a >= 0 else a + ndim for a in tupled_axis]
+        shape = list(gy.shape)
+        for a in sorted(actual_axis):
+            shape.insert(a, 1)
+    else:
+        shape = gy.shape
+
+    gy = gy.reshape(shape)
+    gx = gy.broadcast_to(x_shape)
+    return gx
+
+_fused_sum_grad = PackFunc(_pack_sum_grad, str(id(_pack_sum_grad)), None, True)
+def fused_sum_grad(gy, x_shape, axis, keepdims):
+    return executor.real_run_op(_fused_sum_grad, 'PackFuc', [gy, x_shape, axis, keepdims])
+
 
 _addcmul = ops.Addcmul()
 def raw_addcmul(input, tensor0, tensor1, value):

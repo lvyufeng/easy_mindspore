@@ -1,19 +1,13 @@
 import argparse
-import mindtorch as torch
-from mindtorch import nn
-from mindtorch import optim
-from mindtorch.utils.data import DataLoader
-# import torch
-# import torch.nn as nn
-# from torch import optim
-# from torch.utils.data import DataLoader
+import torch
+import torch.nn as nn
+from torch import optim
+from torch.utils.data import DataLoader
 import torchvision
 from torchvision.transforms import Compose, ToTensor, Resize
 import numpy as np
 from tqdm import tqdm
 import time
-from mindspore._c_expression import _framework_profiler_step_start
-from mindspore._c_expression import _framework_profiler_step_end
 
 class PatchExtractor(nn.Module):
     def __init__(self, patch_size=16):
@@ -86,7 +80,7 @@ class EncoderBlock(nn.Module):
         self.attention = nn.MultiheadAttention(self.latent_size, self.num_heads, dropout=self.dropout)
         self.enc_MLP = nn.Sequential(
             nn.Linear(self.latent_size, self.latent_size * 4),
-            nn.GELU('tanh'),
+            nn.GELU(),
             nn.Dropout(self.dropout),
             nn.Linear(self.latent_size * 4, self.latent_size),
             nn.Dropout(self.dropout)
@@ -122,15 +116,10 @@ class ViT(nn.Module):
         )
 
     def forward(self, test_input):
-        s = time.time()
         enc_output = self.embedding(test_input)
-        t = time.time()
-        print('embedding', t-s)
-        s = time.time()
         for enc_layer in self.encoders:
             enc_output = enc_layer(enc_output)
-        t = time.time()
-        print('encoders', t-s)
+
         class_token_embed = enc_output[:, 0]
         return self.MLPHead(class_token_embed)
 
@@ -159,10 +148,11 @@ class TrainEval:
             s = time.time()
             logits = self.model(images)
             loss = self.criterion(logits, labels)
-            ts = time.time()
+            t = time.time()
             loss.backward()
             self.optimizer.step()
-            print(ts - s)
+            print(t - s)
+
             total_loss += loss.item()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
             if self.args.dry_run:
