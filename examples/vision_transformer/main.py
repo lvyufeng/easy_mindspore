@@ -86,7 +86,7 @@ class EncoderBlock(nn.Module):
         self.attention = nn.MultiheadAttention(self.latent_size, self.num_heads, dropout=self.dropout)
         self.enc_MLP = nn.Sequential(
             nn.Linear(self.latent_size, self.latent_size * 4),
-            nn.GELU('tanh'),
+            nn.GELU(),
             nn.Dropout(self.dropout),
             nn.Linear(self.latent_size * 4, self.latent_size),
             nn.Dropout(self.dropout)
@@ -122,15 +122,9 @@ class ViT(nn.Module):
         )
 
     def forward(self, test_input):
-        s = time.time()
         enc_output = self.embedding(test_input)
-        t = time.time()
-        print('embedding', t-s)
-        s = time.time()
         for enc_layer in self.encoders:
             enc_output = enc_layer(enc_output)
-        t = time.time()
-        print('encoders', t-s)
         class_token_embed = enc_output[:, 0]
         return self.MLPHead(class_token_embed)
 
@@ -153,17 +147,16 @@ class TrainEval:
         tk = tqdm(self.train_dataloader, desc="EPOCH" + "[TRAIN]" + str(current_epoch + 1) + "/" + str(self.epoch))
 
         for t, data in enumerate(tk):
+            # _framework_profiler_step_start()
             images, labels = data
             images, labels = images.to(self.device), labels.to(self.device)
             self.optimizer.zero_grad()
-            s = time.time()
             logits = self.model(images)
             loss = self.criterion(logits, labels)
-            ts = time.time()
             loss.backward()
             self.optimizer.step()
-            print(ts - s)
             total_loss += loss.item()
+            # _framework_profiler_step_end()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
             if self.args.dry_run:
                 break
@@ -266,12 +259,10 @@ def main():
 
     model = ViT(args).to(device)
 
-    # optimizer = optim.Adadelta(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss()
 
     TrainEval(args, model, train_loader, valid_loader, optimizer, criterion, device).train()
-
 
 if __name__ == "__main__":
     main()

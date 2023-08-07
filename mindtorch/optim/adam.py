@@ -88,21 +88,30 @@ class Adam(Optimizer):
                 if group['weight_decay'] != 0:
                     grad = grad.add(p, alpha=group['weight_decay'])
 
-                # Decay the first and second moment running average coefficient
-                exp_avg.mul_(beta1).add_(grad, 1 - beta1)
-                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2)
+                # # Decay the first and second moment running average coefficient
+                # exp_avg.mul_(beta1).add_(grad, 1 - beta1)
+                # exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2)
+                # if amsgrad:
+                #     # Maintains the maximum of all 2nd moment running avg. till now
+                #     torch.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
+                #     # Use the max. for normalizing running avg. of gradient
+                #     denom = max_exp_avg_sq.sqrt().add_(group['eps'])
+                # else:
+                #     denom = exp_avg_sq.sqrt().add_(group['eps'])
+
+                # bias_correction1 = 1 - beta1 ** state['step']
+                # bias_correction2 = 1 - beta2 ** state['step']
+                # step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
+
+                # p.addcdiv_(exp_avg, denom, -step_size)
+
+                beta1_power = beta1 ** state['step']
+                beta2_power = beta2 ** state['step']
                 if amsgrad:
-                    # Maintains the maximum of all 2nd moment running avg. till now
-                    torch.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
-                    # Use the max. for normalizing running avg. of gradient
-                    denom = max_exp_avg_sq.sqrt().add_(group['eps'])
+                    torch._operations.raw_adam_amsgrad(p.data, exp_avg.data, exp_avg_sq.data, max_exp_avg_sq.data,
+                                                       beta1_power, beta2_power, group['lr'], beta1, beta2, group['eps'], grad.data)
                 else:
-                    denom = exp_avg_sq.sqrt().add_(group['eps'])
-
-                bias_correction1 = 1 - beta1 ** state['step']
-                bias_correction2 = 1 - beta2 ** state['step']
-                step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
-
-                p.addcdiv_(exp_avg, denom, -step_size)
+                    torch._operations.raw_adam(p.data, exp_avg.data, exp_avg_sq.data, beta1_power, beta2_power,
+                                               group['lr'], beta1, beta2, group['eps'], grad.data)
 
         return loss

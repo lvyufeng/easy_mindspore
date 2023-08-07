@@ -1,3 +1,4 @@
+import torch
 import mindtorch
 import multiprocessing
 from .sampler import SequentialSampler, RandomSampler, BatchSampler
@@ -80,13 +81,9 @@ def default_collate(batch):
         transposed = zip(*batch)
         return [default_collate(samples) for samples in transposed]
     else:
-        try:
-            import torch
-            if torch.is_tensor(batch[0]):
-                out = torch.stack(batch, 0)
-                return mindtorch.tensor(out.numpy())
-        except:
-            pass
+        if torch.is_tensor(batch[0]):
+            out = torch.stack(batch, 0)
+            return mindtorch.tensor(out.numpy())
 
     raise TypeError(("batch must contain tensors, numbers, dicts or lists; found {}"
                      .format(type(batch[0]))))

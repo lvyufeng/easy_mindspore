@@ -3,7 +3,7 @@ from mindtorch import tensor
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_mul, raw_square, raw_add, raw_neg, raw_sub, \
     raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log, raw_sqrt, raw_matmul, \
-    raw_batch_matmul, raw_sqrt_grad, raw_erf
+    raw_batch_matmul, raw_sqrt_grad, raw_erf, fused_bmm_grad
 from .array import sum_to
 from .utils import ensure_tensor
 
@@ -33,26 +33,28 @@ def matmul(x, w, transpose_a=False, transpose_b=False):
 
 class BatchMatMul(Function):
     @staticmethod
-    def forward(ctx: Context, x, w, transpose_a, transpose_b):
-        ctx.save_for_backward(transpose_a, transpose_b)
-        y = raw_batch_matmul(x, w, transpose_a, transpose_b)
+    def forward(ctx: Context, x, w):
+        # ctx.save_for_backward(transpose_a, transpose_b)
+        y = raw_batch_matmul(x, w, False, False)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         x, W = ctx.inputs
-        transpose_a, transpose_b = ctx.saved_tensors
-        gx = batch_matmul(gy, W, transpose_b=not transpose_b)
-        gW = batch_matmul(x, gy, transpose_a=not transpose_a)
-        if transpose_a:
-            gx = gx.T
-        if transpose_b:
-            gW = gW.T
-        return gx, gW
+        # transpose_a, transpose_b = ctx.saved_tensors
+        # gx = batch_matmul(gy, W, transpose_b=not transpose_b)
+        # gW = batch_matmul(x, gy, transpose_a=not transpose_a)
+        # if transpose_a:
+        #     gx = gx.T
+        # if transpose_b:
+        #     gW = gW.T
+        # return gx, gW
+        gx, gw = fused_bmm_grad(x.data, W.data, gy.data)
+        return tensor(gx), tensor(gw)
 
 
-def batch_matmul(x, w, transpose_a=False, transpose_b=False):
-    return BatchMatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
+def batch_matmul(x, w):
+    return BatchMatMul.apply(x, w)
 
 bmm = batch_matmul
 

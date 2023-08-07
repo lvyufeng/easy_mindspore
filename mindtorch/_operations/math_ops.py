@@ -144,6 +144,16 @@ def raw_batch_matmul(x, y, transpose_a=False, transpose_b=False):
 
     return executor.real_run_op(_batch_matmul, "BatchMatMul", (x, y))
 
+_fused_bmm0 = ops.BatchMatMul(transpose_b=True)
+_fused_bmm1 = ops.BatchMatMul(transpose_a=True)
+def _pack_bmm_grad(x, w, gy):
+    gx = _fused_bmm0(gy, w)
+    gw = _fused_bmm1(x, gy)
+    return gx, gw
+
+_fused_bmm_grad = PackFunc(_pack_bmm_grad, str(id(_pack_bmm_grad)), None, True)
+def fused_bmm_grad(x, w, gy):
+    return executor.real_run_op(_fused_bmm_grad, 'PackFuc', [x, w, gy])
 
 stridedslice_op = Primitive('StridedSlice')
 stridedslice_op.init_prim_io_names(inputs=['x', 'begin', 'end', 'strides'], outputs=['output'])

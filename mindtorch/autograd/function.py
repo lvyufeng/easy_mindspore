@@ -60,8 +60,8 @@ class Function:
         if requires_grad: # cut useless nodes
             generation = max([x.generation for x in vals])
             ctx.outputs = [weakref.ref(output) for output in outputs]
+            back = History(cls, ctx, generation)
             for output in outputs:
-                back = History(cls, ctx, generation)
                 output.set_creator(back)
 
         return outputs if len(outputs) > 1 else outputs[0]

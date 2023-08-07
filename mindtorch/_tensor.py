@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
@@ -6,6 +7,7 @@ import mindtorch
 from mindtorch.config import using_config
 from mindtorch import dtype
 from .utils import NORMAL_DTYPE_MAP, _get_unfold_indices
+import ctypes
 
 def _uniform(self, a, b):
     dtype = self.dtype
@@ -98,6 +100,7 @@ class Tensor:
         else:
             raise ValueError(f'only support `tuple of ints size` and `object data`.')
 
+        self.data.adapter_flag = True
         # Tensor
         self.requires_grad = kwargs.get('requires_grad', False)
 
@@ -179,6 +182,8 @@ class Tensor:
         while funcs:
             f = funcs.pop()
             gys = [output().grad for output in f.ctx.outputs]  # output is weakref
+            if gys[0] is None: # wait for unfinished gys
+                continue
             with using_config('enable_backprop', create_graph):
                 gxs = f.last_fn._backward(f.ctx, *gys)
                 if not isinstance(gxs, tuple):
@@ -360,13 +365,26 @@ class Tensor:
 
     def item(self):
         return self.data.asnumpy().item()
+        # self.data.init_flag = True
+        # # print(self.data.init_flag)
+        # # self.data.data_sync(True)
+        # x = self.data.__str__()
+        # # print(x)
+        # match = re.search(r'value=\s*([\d.]+)', x)
+        # # return x
+        # if match:
+        #     value = float(match.group(1))
+        #     return value
+        # else:
+        #     return 0
 
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
-        matmul, get_item, equal, less, le, greater, ge, sqrt
+        matmul, get_item, equal, less, le, greater, ge, sqrt, chunk
     Tensor.add = add
     Tensor.eq = equal
     Tensor.sqrt = sqrt
+    Tensor.chunk = chunk
     Tensor.__add__ = add
     Tensor.__radd__ = add
     Tensor.__mul__ = mul

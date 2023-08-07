@@ -244,7 +244,7 @@ def fused_gelu_erf(x):
 
 def _pack_gelu_erf_grad(x, dy):
     gelu_derivative =  0.5 * (1 + ops.erf(x / ops.sqrt(ops.cast(2, x.dtype)))) + \
-        0.5 * x * ops.exp(-x**2 / 2) / ops.sqrt(ops.cast(2 * math.pi, x.dtype))
+        0.5 * x * ops.exp(-x ** 2 / 2) / ops.sqrt(ops.cast(2 * math.pi, x.dtype))
     return dy * gelu_derivative
 
 _fused_gelu_erf_grad = PackFunc(_pack_gelu_erf_grad, str(id(_pack_gelu_erf_grad)), None, True)

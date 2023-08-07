@@ -134,3 +134,5 @@ MNIST_Data/
 data/
 dataset/
 *.pt
+*.json
+*.csv

@@ -10,6 +10,8 @@ from mindtorch._functions import ReLU, GELU, SoftmaxCrossEntropy, Linear, Softma
 from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss, LayerNorm, \
     Unfold, Softmax, GELUErf
 
+from mindspore.ops._tracefunc import trace
+
 def make_tuple(inp):
     if isinstance(inp, tuple):
         return (1, 1, inp[0], inp[1])
@@ -156,10 +158,11 @@ def _in_projection_packed(
     if k is v:
         if q is k:
             # self-attention
-            proj = linear(q, w, b)
-            # reshape to 3, E and not E, 3 is deliberate for better memory coalescing and keeping same order as chunk()
-            proj = proj.unflatten(-1, (3, E)).unsqueeze(0).transpose(0, -2).squeeze(-2).contiguous()
-            return proj[0], proj[1], proj[2]
+            # proj = linear(q, w, b)
+            # # reshape to 3, E and not E, 3 is deliberate for better memory coalescing and keeping same order as chunk()
+            # proj = proj.unflatten(-1, (3, E)).unsqueeze(0).transpose(0, -2).squeeze(-2).contiguous()
+            # return proj[0], proj[1], proj[2]
+            return linear(q, w, b).chunk(3, dim=-1)
         else:
             # encoder-decoder attention
             w_q, w_kv = w.split([E, E * 2])
@@ -167,11 +170,12 @@ def _in_projection_packed(
                 b_q = b_kv = None
             else:
                 b_q, b_kv = b.split([E, E * 2])
-            q_proj = linear(q, w_q, b_q)
-            kv_proj = linear(k, w_kv, b_kv)
-            # reshape to 2, E and not E, 2 is deliberate for better memory coalescing and keeping same order as chunk()
-            kv_proj = kv_proj.unflatten(-1, (2, E)).unsqueeze(0).transpose(0, -2).squeeze(-2).contiguous()
-            return (q_proj, kv_proj[0], kv_proj[1])
+            # q_proj = linear(q, w_q, b_q)
+            # kv_proj = linear(k, w_kv, b_kv)
+            # # reshape to 2, E and not E, 2 is deliberate for better memory coalescing and keeping same order as chunk()
+            # kv_proj = kv_proj.unflatten(-1, (2, E)).unsqueeze(0).transpose(0, -2).squeeze(-2).contiguous()
+            # return (q_proj, kv_proj[0], kv_proj[1])
+            return (linear(q, w_q, b_q),) + linear(k, w_kv, b_kv).chunk(2, dim=-1)
     else:
         w_q, w_k, w_v = w.chunk(3)
         if b is None:
@@ -369,7 +373,6 @@ def scaled_dot_product_attention(
     # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
     output = mindtorch.bmm(attn, v)
     return output, attn
-
 
 def multi_head_attention_forward(
     query: Tensor,

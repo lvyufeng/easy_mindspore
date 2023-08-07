@@ -145,13 +145,10 @@ class TrainEval:
             images, labels = data
             images, labels = images.to(self.device), labels.to(self.device)
             self.optimizer.zero_grad()
-            s = time.time()
             logits = self.model(images)
             loss = self.criterion(logits, labels)
-            t = time.time()
             loss.backward()
             self.optimizer.step()
-            print(t - s)
 
             total_loss += loss.item()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})

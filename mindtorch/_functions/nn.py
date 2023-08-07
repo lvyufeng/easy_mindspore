@@ -48,7 +48,7 @@ class GELUErf(Function):
 
     @staticmethod
     def backward(ctx: Context, gy):
-        x, _ = ctx.inputs
+        x, = ctx.inputs
         gx = fused_gelu_erf_grad(x.data, gy.data)
         return tensor(gx)
 
@@ -73,6 +73,7 @@ class SoftmaxCrossEntropy(Function):
     @staticmethod
     def forward(ctx:Context, logits, labels):
         loss = raw_softmax_crossentropy(logits, labels)
+        # loss.data_sync(True)
         return loss
 
     @staticmethod

@@ -113,4 +113,11 @@ def raw_slice(x, begin, size):
 _masked_fill = Primitive('MaskedFill')
 _masked_fill.init_prim_io_names(inputs=['input', 'mask', 'value'], outputs=['output'])
 def raw_masked_fill(input, mask, value):
-    return executor.real_run_op(_masked_fill, "Slice", [input, mask, value])
+    return executor.real_run_op(_masked_fill, "MaskedFill", [input, mask, value])
+
+_split = Primitive('Split')
+def raw_split(x, axis, output_num):
+    _split.add_prim_attr('axis', axis)
+    _split.add_prim_attr('output_num', output_num)
+    _split.add_prim_attr('num_split', output_num)
+    return executor.real_run_op(_split, "Split", [x])

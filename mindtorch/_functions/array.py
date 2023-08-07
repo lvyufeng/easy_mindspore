@@ -2,7 +2,8 @@ from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
     raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
     raw_cast, raw_log_softmax, raw_log_softmax_grad, raw_lt, raw_le, raw_ne, raw_gt, raw_ge, \
-    raw_gather, raw_unsorted_segment_sum, raw_concat, raw_slice, fused_sum_grad
+    raw_gather, raw_unsorted_segment_sum, raw_concat, raw_slice, fused_sum_grad, \
+    raw_split
 from mindtorch._functions import utils
 from mindtorch import dtype, tensor, Tensor
 from .utils import ensure_tensor
@@ -348,3 +349,16 @@ def narrow(input, axis, start, length):
     sizes[axis] = length
     return slice(input, begins, sizes)
 
+class Split(Function):
+    @staticmethod
+    def forward(ctx: Context, x, axis, output_num):
+        ctx.save_for_backward(axis)
+        return raw_split(x, axis, output_num)
+
+    @staticmethod
+    def backward(ctx: Context, *grad_output):
+        axis, = ctx.saved_values
+        return cat(grad_output, axis)
+
+def chunk(input, chunks, dim=0):
+    return Split.apply(input, axis=dim, output_num=chunks)
