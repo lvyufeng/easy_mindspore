@@ -86,8 +86,8 @@ class Adam(Optimizer):
                 state['step'] += 1
 
                 if group['weight_decay'] != 0:
-                    grad = grad.add(p, alpha=group['weight_decay'])
-
+                    # grad = grad.add(p, alpha=group['weight_decay'])
+                    grad.data = torch._operations.fused_add_mul(grad.data, p.data, group['weight_decay'])
                 # # Decay the first and second moment running average coefficient
                 # exp_avg.mul_(beta1).add_(grad, 1 - beta1)
                 # exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2)

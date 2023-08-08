@@ -175,3 +175,23 @@ def raw_strided_slice_grad(dout, x_shape, begin, end, strides, begin_mask=0, end
     stridedslice_grad_op.add_prim_attr('new_axis_mask', new_axis_mask)
     stridedslice_grad_op.add_prim_attr('shrink_axis_mask', shrink_axis_mask)
     return executor.real_run_op(stridedslice_grad_op, "StridedSliceGrad", (dout, x_shape, begin, end, strides))
+
+def sum_to(x, shape):
+    ndim = len(shape)
+    lead = x.ndim - ndim
+    lead_axis = tuple(range(lead))
+
+    axis = tuple([i + lead for i, sx in enumerate(shape) if sx == 1])
+    y = x.sum(lead_axis + axis, keepdims=True)
+    if lead > 0:
+        y = y.squeeze(lead_axis)
+    return y
+
+def _pack_sum_grad(gy, x0_shape, x1_shape):
+    gx0 = sum_to(gy, x0_shape)
+    gx1 = sum_to(gy, x1_shape)
+    return gx0, gx1
+
+_fused_sum_grad = PackFunc(_pack_sum_grad, str(id(_pack_sum_grad)), None, True)
+def fused_sum_grad(gy, x0_shape, x1_shape):
+    return executor.real_run_op(_fused_sum_grad, 'PackFuc', [gy, x0_shape, x1_shape])

@@ -278,3 +278,36 @@ _fused_dropout_grad = PackFunc(_pack_dropout_grad, str(id(_pack_dropout_grad)), 
 def fused_dropout_grad(gy, mask, p):
     return executor.real_run_op(_fused_dropout_grad, 'PackFuc', [gy, mask, p])
 
+_linear = Primitive('Dense')
+_linear.init_prim_io_names(inputs=['x', 'w', 'b'], outputs=["output"])
+def raw_linear(x, w, b):
+    if b is not None:
+        _linear.add_prim_attr("has_bias", True)
+    else:
+        _linear.add_prim_attr("has_bias", False)
+    return executor.real_run_op(_linear, 'Dense', [x, w, b])
+
+_linear_grad = Primitive('DenseGrad')
+_linear_grad.init_prim_io_names(inputs=['x', 'w', 'dout'], outputs=["dx", "dw"])
+_linear_grad.add_prim_attr("has_bias", False)
+def raw_linear_grad(x, w, dout):
+    return executor.real_run_op(_linear_grad, 'DenseGrad', [x, w, dout])
+
+def _pack_add_mul(x, other, alpha):
+    return x + alpha * other
+
+_fused_add_mul = PackFunc(_pack_add_mul, str(id(_pack_add_mul)), None, True)
+def fused_add_mul(x, other, alpha):
+    return executor.real_run_op(_fused_add_mul, 'PackFuc', [x, other, alpha])
+
+def sum_to(x, shape):
+    ndim = len(shape)
+    lead = x.ndim - ndim
+    lead_axis = tuple(range(lead))
+
+    axis = tuple([i + lead for i, sx in enumerate(shape) if sx == 1])
+    y = x.sum(lead_axis + axis, keepdims=True)
+    if lead > 0:
+        y = y.squeeze(lead_axis)
+    return y
+

@@ -19,9 +19,9 @@ def make_tuple(inp):
         return (1, 1, inp, inp)
 
 def linear(x, W, b=None):
-    if b is None:
+    # if b is None:
         # return matmul(x, W, transpose_b=True)
-        b = mindtorch.zeros(W.shape[-1], W.dtype)
+        # b = mindtorch.zeros(W.shape[-1], W.dtype)
     return Linear.apply(x, W, b)
     # x_shape = x.shape
     # if x.ndim > 2:

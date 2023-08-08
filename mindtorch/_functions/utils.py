@@ -1,3 +1,4 @@
+from functools import lru_cache
 from mindtorch import Tensor, tensor
 from mindtorch._operations import raw_sum, raw_squeeze
 
@@ -61,7 +62,6 @@ def sum_to(x, shape):
         y = raw_squeeze(y, lead_axis)
     return y
 
-
 def slice_helper(slice_spec):
     if not isinstance(slice_spec, (list, tuple)):
         slice_spec = [slice_spec]
@@ -110,6 +110,7 @@ def slice_helper(slice_spec):
         
     return begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask
 
+@lru_cache(1024)
 def _regenerate_output_shape(x_shp, ind_shp, axis):
     rank = len(x_shp)
     if axis < 0:
@@ -117,6 +118,7 @@ def _regenerate_output_shape(x_shp, ind_shp, axis):
     out_shape = x_shp[:axis] + ind_shp + x_shp[axis + 1:]
     return out_shape
 
+@lru_cache(1024)
 def generate_shape_index(out_shape, indices_shape, axis):
     out_rank = len(out_shape)
     ind_rank = len(indices_shape)
@@ -127,6 +129,7 @@ def generate_shape_index(out_shape, indices_shape, axis):
     perm = perm_part1 + index[:axis] + index[axis + ind_rank:]
     return perm
 
+@lru_cache(1024)
 def _generate_inverse_index(x_shape, axis):
     x_rank = len(x_shape)
     index = tuple(range(x_rank))

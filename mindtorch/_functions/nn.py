@@ -5,7 +5,7 @@ from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentr
     raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
     raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad, \
     raw_fold, raw_unfold, raw_softmax, fused_linear, fused_linear_grad, fused_gelu_erf, fused_gelu_erf_grad, \
-    fused_softmax_grad, fused_dropout, fused_dropout_grad
+    fused_softmax_grad, fused_dropout, fused_dropout_grad, raw_linear, raw_linear_grad
 
 from .math import matmul
 from .creation import zeros_like
@@ -106,6 +106,7 @@ class Linear(Function):
         # if b is not None:
         #     y = raw_add(y, b)
         y = fused_linear(x, w, b)
+        # y = raw_linear(x, w, b)
         return y
 
     @staticmethod
@@ -116,6 +117,7 @@ class Linear(Function):
         # gW = matmul(x, gy, transpose_a=True)
         # return gx, gW.T, tensor(gb)
         gx, gw, gb = fused_linear_grad(x.data, W.data, b.data, gy.data)
+        # gx, gw, _ = raw_linear_grad(x.data, W.data, gy.data)
         return tensor(gx), tensor(gw), tensor(gb)
 
 class Conv2d(Function):
