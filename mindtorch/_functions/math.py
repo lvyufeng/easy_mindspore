@@ -3,7 +3,7 @@ from mindtorch import tensor
 from mindtorch.autograd import Function, Context
 from mindtorch._operations import raw_mul, raw_square, raw_add, raw_neg, raw_sub, \
     raw_div, raw_pow, raw_sin, raw_cos, raw_tanh, raw_exp, raw_log, raw_sqrt, raw_matmul, \
-    raw_batch_matmul, raw_sqrt_grad, raw_erf, fused_bmm_grad, fused_sum_grad
+    raw_batch_matmul, raw_sqrt_grad, raw_erf, fused_bmm_grad, fused_add_grad, fused_div_grad
 from .array import sum_to
 from .utils import ensure_tensor
 
@@ -87,7 +87,7 @@ class Add(Function):
         if x0_shape != x1_shape:  # for broadcaset
             # gx0 = sum_to(gx0, x0_shape)
             # gx1 = sum_to(gx1, x1_shape)
-            gx0, gx1 = fused_sum_grad(gy.data, x0_shape, x1_shape)
+            gx0, gx1 = fused_add_grad(gy.data, x0_shape, x1_shape)
             gx0, gx1 = tensor(gx0), tensor(gx1)
         return gx0, gx1
 
@@ -171,24 +171,22 @@ class Div(Function):
     @staticmethod
     def backward(ctx: Context, gy):
         x0, x1 = ctx.inputs
-        gx0 = gy / x1
-        gx1 = gy * (-x0 / x1 ** 2)
-        if x0.shape != x1.shape:  # for broadcast
-            gx0 = sum_to(gx0, x0.shape)
-            gx1 = sum_to(gx1, x1.shape)
-        return gx0, gx1
+        # gx0 = gy / x1
+        # gx1 = gy * (-x0 / x1 ** 2)
+        # if x0.shape != x1.shape:  # for broadcast
+        #     gx0 = sum_to(gx0, x0.shape)
+        #     gx1 = sum_to(gx1, x1.shape)
+        # return gx0, gx1
+        gx0, gx1 = fused_div_grad(x0.data, x1.data, gy.data)
+        return tensor(gx0), tensor(gx1)
 
 def div(x0, x1):
     x1 = ensure_tensor(x1)
-    x0 = x0.float()
-    x1 = x1.float()
     return Div.apply(x0, x1)
 
 
 def rdiv(x0, x1):
     x1 = ensure_tensor(x1)
-    x0 = x0.float()
-    x1 = x1.float()
     return div(x1, x0)
 
 class Sqrt(Function):

@@ -8,7 +8,6 @@ NORMAL_DTYPE_MAP = {
     "float64": typing.Float(32),
 }
 
-@lru_cache()
 def _get_unfold_indices(input_shape, dimension, size, step):
     if dimension < 0:
         dimension += len(input_shape)

@@ -201,23 +201,10 @@ class BiasAdd(Function):
 def _bias_add(x, b):
     return BiasAdd.apply(x, b)
 
-# class Dropout(Function):
-#     @staticmethod
-#     def forward(ctx: Context, x, dropout):
-#         y, mask = raw_dropout(x, dropout)
-#         ctx.save_for_backward(mask, dropout)
-#         return y
-
-#     @staticmethod
-#     def backward(ctx: Context, gy):
-#         mask, dropout = ctx.saved_tensors
-#         gx = _dropout_grad(gy, tensor(mask), dropout)
-#         return gx
-
 class Dropout(Function):
     @staticmethod
     def forward(ctx: Context, x, dropout):
-        y, mask = fused_dropout(x, dropout)
+        y, mask = raw_dropout(x, dropout)
         ctx.save_for_backward(mask, dropout)
         return y
 

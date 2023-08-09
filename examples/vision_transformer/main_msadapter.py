@@ -157,12 +157,12 @@ class TrainEval:
             return loss
 
         for t, data in enumerate(tk):
-            _framework_profiler_step_start()
+            # _framework_profiler_step_start()
             images, labels = data
             images, labels = images.to(self.device), labels.to(self.device)
             loss = train_step(images, labels)
             total_loss += loss.item()
-            _framework_profiler_step_end()
+            # _framework_profiler_step_end()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
             if self.args.dry_run:
                 break

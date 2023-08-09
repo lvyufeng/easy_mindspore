@@ -187,11 +187,23 @@ def sum_to(x, shape):
         y = y.squeeze(lead_axis)
     return y
 
-def _pack_sum_grad(gy, x0_shape, x1_shape):
+def _pack_add_grad(gy, x0_shape, x1_shape):
     gx0 = sum_to(gy, x0_shape)
     gx1 = sum_to(gy, x1_shape)
     return gx0, gx1
 
-_fused_sum_grad = PackFunc(_pack_sum_grad, str(id(_pack_sum_grad)), None, True)
-def fused_sum_grad(gy, x0_shape, x1_shape):
-    return executor.real_run_op(_fused_sum_grad, 'PackFuc', [gy, x0_shape, x1_shape])
+_fused_add_grad = PackFunc(_pack_add_grad, str(id(_pack_add_grad)), None, True)
+def fused_add_grad(gy, x0_shape, x1_shape):
+    return executor.real_run_op(_fused_add_grad, 'PackFuc', [gy, x0_shape, x1_shape])
+
+def _pack_div_grad(x0, x1, gy):
+    gx0 = gy / x1
+    gx1 = gy * (-x0 / x1 ** 2)
+    if x0.shape != x1.shape:  # for broadcast
+        gx0 = sum_to(gx0, x0.shape)
+        gx1 = sum_to(gx1, x1.shape)
+    return gx0, gx1
+
+_fused_div_grad = PackFunc(_pack_div_grad, str(id(_pack_div_grad)), None, True)
+def fused_div_grad(x0, x1, gy):
+    return executor.real_run_op(_fused_div_grad, 'PackFuc', [x0, x1, gy])

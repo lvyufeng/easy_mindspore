@@ -364,19 +364,19 @@ class Tensor:
         return self
 
     def item(self):
-        return self.data.asnumpy().item()
+        # return self.data.asnumpy().item()
         # self.data.init_flag = True
         # # print(self.data.init_flag)
-        # # self.data.data_sync(True)
-        # x = self.data.__str__()
-        # # print(x)
-        # match = re.search(r'value=\s*([\d.]+)', x)
-        # # return x
-        # if match:
-        #     value = float(match.group(1))
-        #     return value
-        # else:
-        #     return 0
+        self.data.data_sync(True)
+        x = self.data.__str__()
+        # print(x)
+        match = re.search(r'value=\s*([\d.]+)', x)
+        # return x
+        if match:
+            value = float(match.group(1))
+            return value
+        else:
+            return 0
 
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \

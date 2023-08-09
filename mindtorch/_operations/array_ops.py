@@ -1,6 +1,8 @@
 from mindspore import ops
 from mindspore.ops import Primitive
 from mindspore.common.api import _pynative_executor as executor
+from mindspore._c_expression import Tensor
+from mindspore.ops._tracefunc import PackFunc
 
 from mindtorch.dtype import int64
 
@@ -121,3 +123,18 @@ def raw_split(x, axis, output_num):
     _split.add_prim_attr('output_num', output_num)
     _split.add_prim_attr('num_split', output_num)
     return executor.real_run_op(_split, "Split", [x])
+
+def _pack_unfold(data, dimension, size, step):
+    if dimension < 0:
+        dimension += data.ndim
+    indices = []
+    for i in range(0, data.shape[dimension] - size + 1, step):
+        indices.append(list(range(i, i + size)))
+
+    indices = Tensor(indices)
+    output = ops.gather(data, indices, axis=dimension)
+    return ops.swapaxes(output, dimension + 1, -1)
+
+_fused_unfold = PackFunc(_pack_unfold, str(id(_pack_unfold)), None, True)
+def fused_unfold(data, dimension, size, step):
+    return executor.real_run_op(_fused_unfold, 'PackFuc', [data, dimension, size, step])
