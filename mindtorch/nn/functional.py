@@ -8,7 +8,7 @@ from .._tensor import Tensor, Dependency
 from mindtorch._functions import ReLU, GELU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
     ones, matmul, uniform
 from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss, LayerNorm, \
-    Unfold, Softmax, GELUErf
+    Softmax, GELUErf
 
 from mindspore.ops._tracefunc import trace
 
@@ -88,12 +88,12 @@ def max_pool2d(input, kernel_size, strides=None, padding=0, dilation=1, ceil_mod
 
     if strides is None:
         strides = kernel_size
-    kernel_size = make_tuple(kernel_size)
-    stride = make_tuple(strides)
-    pads = make_tuple(padding)
-    dilation = make_tuple(dilation)
+    # kernel_size = make_tuple(kernel_size)
+    # stride = make_tuple(strides)
+    # pads = make_tuple(padding)
+    # dilation = make_tuple(dilation)
     
-    return _maxpool(input, kernel_size, stride, pads, dilation, ceil_mode, return_indices)
+    return _maxpool(input, kernel_size, strides, padding, dilation, ceil_mode, return_indices)
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     out = Unfold.apply(input, kernel_size=kernel_size, dilation=dilation,

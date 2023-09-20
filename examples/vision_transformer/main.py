@@ -153,6 +153,7 @@ class TrainEval:
             self.optimizer.zero_grad()
             logits = self.model(images)
             loss = self.criterion(logits, labels)
+            print(loss)
             loss.backward()
             self.optimizer.step()
             total_loss += loss.item()

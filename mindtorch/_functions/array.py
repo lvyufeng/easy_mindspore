@@ -1,9 +1,8 @@
+from mindspore import ops
+from mindspore.ops.operations._grad_ops import LogSoftmaxGrad, StridedSliceGrad
+from mindspore.ops._primitive_cache import _get_cache_prim
+
 from mindtorch.autograd import Function, Context
-from mindtorch._operations import raw_sum, raw_reshape, raw_transpose, raw_broadcast_to, \
-    raw_matmul, raw_strided_slice, raw_strided_slice_grad, raw_argmax, raw_equal, \
-    raw_cast, raw_log_softmax, raw_log_softmax_grad, raw_lt, raw_le, raw_ne, raw_gt, raw_ge, \
-    raw_gather, raw_unsorted_segment_sum, raw_concat, raw_slice, fused_sum_grad, \
-    raw_split
 from mindtorch._functions import utils
 from mindtorch import dtype, tensor, Tensor
 from .utils import ensure_tensor
@@ -15,7 +14,7 @@ class Reshape(Function):
     @staticmethod
     def forward(ctx: Context, x, shape):
         ctx.save_for_backward(x._shape)
-        y = raw_reshape(x, shape)
+        y = ops.reshape(x, shape)
         return y
 
     @staticmethod
@@ -46,7 +45,7 @@ class Transpose(Function):
     @staticmethod
     def forward(ctx: Context, x, axes):
         ctx.save_for_backward(axes)
-        y = raw_transpose(x, axes)
+        y = ops.transpose(x, axes)
         return y
 
     @staticmethod
@@ -100,16 +99,19 @@ class Sum(Function):
     @staticmethod
     def forward(ctx: Context, x, axis, keepdims):
         ctx.save_for_backward(x._shape, axis, keepdims)
-        y = raw_sum(x, axis=axis, keepdims=keepdims)
+        if axis is None:
+            axis = ()
+        _sum = _get_cache_prim(ops.ReduceSum)(keepdims)
+        y = _sum(x, axis=axis)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         x_shape, axis, keepdims = ctx.saved_values
-        # gy = utils.reshape_sum_backward(gy, x_shape, axis, keepdims)
-        # gx = broadcast_to(gy, x_shape)
+        gy = utils.reshape_sum_backward(gy, x_shape, axis, keepdims)
+        gx = broadcast_to(gy, x_shape)
         # return gx
-        gx = fused_sum_grad(gy.data, x_shape, axis, keepdims)
+        # gx = fused_sum_grad(gy.data, x_shape, axis, keepdims)
         return tensor(gx)
 
 def sum(x, dim=None, keepdims=False):
@@ -145,7 +147,7 @@ class BroadcastTo(Function):
     @staticmethod
     def forward(ctx: Context, x, shape):
         ctx.save_for_backward(x._shape)
-        y = raw_broadcast_to(x, shape)
+        y = ops.broadcast_to(x, shape)
         return y
 
     @staticmethod
@@ -165,7 +167,7 @@ class GetItem(Function):
     def forward(ctx: Context, x, slices):
         slices = utils.slice_helper(slices)
         ctx.save_for_backward(slices, x._shape)
-        y = raw_strided_slice(x, *slices)
+        y = ops.strided_slice(x, *slices)
         return y
 
     @staticmethod
@@ -178,8 +180,10 @@ class GetItemGrad(Function):
     @staticmethod
     def forward(ctx: Context, gy, slices, in_shape):
         # slices = utils.slice_helper(slices)
+        begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask = slices
         ctx.save_for_backward(slices)
-        gx = raw_strided_slice_grad(gy, in_shape, *slices)
+        _grad = StridedSliceGrad(begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask)
+        gx = _grad(gy, in_shape, begin, end, strides)
         return gx
 
     @staticmethod
@@ -197,7 +201,7 @@ def get_item_grad(gy, slices, x_shape):
 class Argmax(Function):
     @staticmethod
     def forward(ctx: Context, x, axis):
-        y = raw_argmax(x, axis)
+        y = ops.argmax(x, axis)
         return y
 
 def argmax(x, axis):
@@ -207,7 +211,7 @@ class Cast(Function):
     @staticmethod
     def forward(ctx: Context, x, dtype):
         ctx.save_for_backward(x.dtype)
-        return raw_cast(x, dtype)
+        return ops.cast(x, dtype)
     
     @staticmethod
     def backward(ctx: Context, gy):
@@ -222,20 +226,21 @@ class LogSoftmax(Function):
     @staticmethod
     def forward(ctx: Context, x, axis):
         ctx.save_for_backward(axis)
-        return raw_log_softmax(x, axis)
+        return ops.log_softmax(x, axis)
 
     @staticmethod
     def backward(ctx: Context, gy):
         axis, = ctx.saved_tensors
         y, = ctx.outputs
-        gx = raw_log_softmax_grad(y().data, gy.data, axis)
-        return tensor(gx, gy.requires_grad)
+        _log_softmax_grad = LogSoftmaxGrad(axis)
+        gx = _log_softmax_grad(y().data, gy.data)
+        return tensor(gx.stub_sync(), gy.requires_grad)
 
 # cmp operators
 class Equal(Function):
     @staticmethod
     def forward(ctx: Context, x, y):
-        return raw_equal(x, y)
+        return ops.equal(x, y)
 
 def equal(x, y):
     if isinstance(y, Tensor):
@@ -245,7 +250,7 @@ def equal(x, y):
 class Less(Function):
     @staticmethod
     def forward(ctx: Context, x, y):
-        return raw_lt(x, y)
+        return ops.lt(x, y)
 
 def less(x, y):
     if isinstance(y, Tensor):
@@ -255,7 +260,7 @@ def less(x, y):
 class LessEqual(Function):
     @staticmethod
     def forward(ctx: Context, x, y):
-        return raw_le(x, y)
+        return ops.le(x, y)
 
 def le(x, y):
     if isinstance(y, Tensor):
@@ -265,7 +270,7 @@ def le(x, y):
 class Greater(Function):
     @staticmethod
     def forward(ctx: Context, x, y):
-        return raw_gt(x, y)
+        return ops.gt(x, y)
 
 def greater(x, y):
     if isinstance(y, Tensor):
@@ -275,7 +280,7 @@ def greater(x, y):
 class GreaterEqual(Function):
     @staticmethod
     def forward(ctx: Context, x, y):
-        return raw_ge(x, y)
+        return ops.ge(x, y)
 
 def ge(x, y):
     if isinstance(y, Tensor):
@@ -286,7 +291,7 @@ class Gather(Function):
     @staticmethod
     def forward(ctx: Context, params, indices, axis):
         ctx.save_for_backward(axis)
-        return raw_gather(params, indices, axis)
+        return ops.gather(params, indices, axis)
 
     @staticmethod
     def backward(ctx: Context, dout):
@@ -308,10 +313,10 @@ class Gather(Function):
         # Example: out_shape:(3,2,3) axis 1 -> (1,0,2)
         perm_1 = utils.generate_shape_index(out_shp, ind_shp, axis)
         values_transpose = _transpose(dout, perm_1)
-        params_grad = raw_unsorted_segment_sum(values_transpose.data, indices.data, params.shape[axis])
+        params_grad = ops.UnsortedSegmentSum()(values_transpose.data, indices.data, params.shape[axis])
         # Example: out_shape:(3,2,3) axis 2 -> (1,2,0)
         perm_2 = utils._generate_inverse_index(x_shp, axis)
-        params_grad = raw_transpose(params_grad, perm_2)
+        params_grad = ops.transpose(params_grad, perm_2)
         return tensor(params_grad, dout.requires_grad), zeros_like(orig_indices)
 
 def gather(params, indices, axis):
@@ -322,7 +327,7 @@ class Concat(Function):
     def forward(ctx: Context, *inputs, dim):
         input_sizes = [i.shape[dim] for i in inputs]
         ctx.save_for_backward(dim, tuple(input_sizes))
-        return raw_concat(inputs, dim)
+        return ops.concat(inputs, dim)
 
     @staticmethod
     def backward(ctx: Context, grad_output):
@@ -337,7 +342,7 @@ class Slice(Function):
     @staticmethod
     def forward(ctx: Context, input, begin, size):
         ctx.save_for_backward(begin, size)
-        return raw_slice(input, begin, size)
+        return ops.slice(input, begin, size)
 
 def slice(input, begin, size):
     return Slice.apply(input, begin=begin, size=size)
@@ -353,7 +358,7 @@ class Split(Function):
     @staticmethod
     def forward(ctx: Context, x, axis, output_num):
         ctx.save_for_backward(axis)
-        return raw_split(x, axis, output_num)
+        return ops.Split(axis, output_num)(x)
 
     @staticmethod
     def backward(ctx: Context, *grad_output):

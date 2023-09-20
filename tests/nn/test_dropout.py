@@ -9,13 +9,13 @@ class TestDropout(unittest.TestCase):
 
     def test_forward1(self):
         x = tensor(np.random.randn(100, 100))
-        y = F.dropout(x, dropout=0.0)
+        y = F.dropout(x, p=0.0)
         res = x == y
         self.assertTrue(res)
 
     def test_forward2(self):
         x = tensor(np.random.randn(100, 100))
-        y = F.dropout(x, dropout=0.5)
+        y = F.dropout(x, p=0.5)
         drop_num = (y == 0).sum()
         print(drop_num, x.size())
     # def test_backward1(self):

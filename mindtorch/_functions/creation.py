@@ -1,12 +1,12 @@
+from mindspore import ops
+from mindspore.ops._primitive_cache import _get_cache_prim
 from mindtorch.autograd import Function, Context
-from mindtorch._operations import raw_ones, raw_ones_like, raw_zeros, raw_zeros_like, \
-    raw_uniform, raw_normal
 from mindtorch.dtype import *
 
 class Ones(Function):
     @staticmethod
     def forward(ctx:Context, shape, dtype):
-        y = raw_ones(shape, dtype)
+        y = ops.ones(shape, dtype)
         return y
 
 def ones(*shape, dtype=None, requires_grad=False):
@@ -20,7 +20,7 @@ def ones(*shape, dtype=None, requires_grad=False):
 class Zeros(Function):
     @staticmethod
     def forward(ctx:Context, shape, dtype):
-        y = raw_zeros(shape, dtype)
+        y = ops.zeros(shape, dtype)
         return y
 
 def zeros(*shape, dtype=None, requires_grad=False):
@@ -33,7 +33,8 @@ def zeros(*shape, dtype=None, requires_grad=False):
 class Uniform(Function):
     @staticmethod
     def forward(ctx:Context, shape):
-        y = raw_uniform(shape)
+        _uniform = _get_cache_prim(ops.UniformReal)()
+        y = _uniform(shape)
         return y
 
 def uniform(*shape, dtype=None, requires_grad=False):
@@ -46,7 +47,7 @@ def uniform(*shape, dtype=None, requires_grad=False):
 class Normal(Function):
     @staticmethod
     def forward(ctx:Context, shape):
-        y = raw_normal(shape)
+        y = ops.standard_normal(shape)
         return y
 
 def randn(*shape, dtype=None, requires_grad=False):
@@ -61,7 +62,7 @@ def randn(*shape, dtype=None, requires_grad=False):
 class OnesLike(Function):
     @staticmethod
     def forward(ctx:Context, x):
-        y = raw_ones_like(x)
+        y = ops.ones_like(x)
         return y
 
 def ones_like(x, *, dtype=None, requires_grad=False):
@@ -70,7 +71,7 @@ def ones_like(x, *, dtype=None, requires_grad=False):
 class ZerosLike(Function):
     @staticmethod
     def forward(ctx:Context, x):
-        y = raw_zeros_like(x)
+        y = ops.zeros_like(x)
         return y
 
 def zeros_like(x, *, dtype=None, requires_grad=False):

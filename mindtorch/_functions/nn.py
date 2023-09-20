@@ -1,11 +1,11 @@
+import math
+from mindspore import ops, Tensor
+from mindspore.ops import Primitive
+from mindspore.ops.operations._grad_ops import LayerNormGrad, Conv2DBackpropFilter, BiasAddGrad, \
+    DropoutGrad, NLLLossGrad, MaxPoolGradWithArgmaxV2
+
 from mindtorch import tensor
 from mindtorch.autograd import Function, Context
-from mindtorch._operations import raw_relu, raw_relu_grad, raw_softmax_crossentropy, raw_mul, \
-    raw_softmax_crossentropy_ascend, raw_matmul, raw_add, raw_conv2d, raw_conv2d_gx, raw_conv2d_gw, \
-    raw_bias_add, raw_bias_add_grad, raw_dropout, raw_dropout_grad, raw_maxpool, raw_maxpool_grad, \
-    raw_nll_loss, raw_nll_loss_grad, raw_layer_norm, raw_layer_norm_grad, raw_gelu, raw_gelu_grad, \
-    raw_fold, raw_unfold, raw_softmax, fused_linear, fused_linear_grad, fused_gelu_erf, fused_gelu_erf_grad, \
-    fused_softmax_grad, fused_dropout, fused_dropout_grad, raw_linear, raw_linear_grad
 
 from .math import matmul
 from .creation import zeros_like
@@ -17,62 +17,69 @@ from .utils import sum_to
 class ReLU(Function):
     @staticmethod
     def forward(ctx: Context, x):
-        y = raw_relu(x)
-        ctx.save_for_backward(y)
+        y = ops.relu(x)
+        ctx.save_for_backward(y.stub_sync())
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         y, = ctx.saved_tensors
-        gx = raw_relu_grad(gy.data, y)
-        return tensor(gx)
+        _relu_grad = Primitive('ReluGrad')
+        gx = _relu_grad(gy.data, y)
+        return tensor(gx.stub_sync())
 
 class GELU(Function):
     @staticmethod
     def forward(ctx: Context, x):
-        y = raw_gelu(x)
+        y = ops.gelu(x)
         ctx.save_for_backward(x, y)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         x, y, = ctx.saved_tensors
-        gx = raw_gelu_grad(gy.data, x, y)
-        return tensor(gx)
+        _gelu_grad = Primitive('GeLUGrad')
+        gx = _gelu_grad(gy.data, x, y)
+        return tensor(gx.stub_sync())
+
+def _pack_gelu_erf_grad(x, dy):
+    gelu_derivative =  0.5 * (1 + ops.erf(x / ops.sqrt(ops.cast(2, x.dtype)))) + \
+        0.5 * x * ops.exp(-x ** 2 / 2) / ops.sqrt(ops.cast(2 * math.pi, x.dtype))
+    return dy * gelu_derivative
 
 class GELUErf(Function):
     @staticmethod
     def forward(ctx: Context, x):
-        y = fused_gelu_erf(x)
+        y = 0.5 * x * (1 + ops.erf(x / ops.sqrt(ops.cast(2, x.dtype))))
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         x, = ctx.inputs
-        gx = fused_gelu_erf_grad(x.data, gy.data)
-        return tensor(gx)
+        gx = _pack_gelu_erf_grad(x.data, gy.data)
+        return tensor(gx.stub_sync())
 
 class Softmax(Function):
     @staticmethod
     def forward(ctx: Context, input, axis):
         ctx.save_for_backward(axis)
-        return raw_softmax(input, axis)
+        return ops.softmax(input, axis)
 
     @staticmethod
     def backward(ctx: Context, gy):
         axis, = ctx.saved_values
         y = ctx.outputs[0]()
-        # gx = y * gy
-        # sumdx = gx.sum(dim=axis, keepdims=True)
-        # gx -= y * sumdx
-        # return gx
-        gx = fused_softmax_grad(y.data, gy.data, axis)
-        return tensor(gx)
+        gx = y * gy
+        sumdx = gx.sum(dim=axis, keepdims=True)
+        gx -= y * sumdx
+        return gx
+        # gx = fused_softmax_grad(y.data, gy.data, axis)
+        # return tensor(gx)
 
 class SoftmaxCrossEntropy(Function):
     @staticmethod
     def forward(ctx:Context, logits, labels):
-        loss = raw_softmax_crossentropy(logits, labels)
+        loss = ops.SparseSoftmaxCrossEntropyWithLogits()(logits, labels)
         # loss.data_sync(True)
         return loss
 
@@ -80,14 +87,15 @@ class SoftmaxCrossEntropy(Function):
     def backward(ctx: Context, gy):
         logits, labels = ctx.inputs
         requires_grad = logits.requires_grad | labels.requires_grad
-        grad = raw_softmax_crossentropy(logits.data, labels.data, True)
-        grad = raw_mul(grad, gy.data)
-        return tensor(grad, requires_grad=requires_grad), zeros_like(labels)
+        grad = ops.SparseSoftmaxCrossEntropyWithLogits(True)(logits.data, labels.data)
+        grad = ops.mul(grad, gy.data)
+        return tensor(grad.stub_sync(), requires_grad=requires_grad), None
 
 class SoftmaxCrossEntropyAscend(Function):
     @staticmethod
     def forward(ctx:Context, logits, labels):
-        loss, grads = raw_softmax_crossentropy_ascend(logits, labels)
+        _softmax_crossentropy_ascend = Primitive('SparseSoftmaxCrossEntropyWithLogitsV2')
+        loss, grads = _softmax_crossentropy_ascend(logits, labels)
         ctx.save_for_backward(grads)
         return loss
 
@@ -98,14 +106,33 @@ class SoftmaxCrossEntropyAscend(Function):
         grad = grads * gy.reshape(-1, 1)
         return grad, zeros_like(labels)
 
+def _pack_linear_grad(x, w, b, gy):
+    ndim = len(b.shape)
+    lead = gy.ndim - ndim
+    lead_axis = tuple(range(lead))
+
+    axis = tuple([i + lead for i, sx in enumerate(b.shape) if sx == 1])
+    gb = gy.sum(lead_axis + axis, keepdims=True)
+    if lead > 0:
+        gb = gb.squeeze(lead_axis)
+
+    x_shape = x.shape
+    if gy.ndim != 2:
+        gy = gy.reshape(-1, gy.shape[-1])
+    if x.ndim != 2:
+        x = x.reshape(-1, x_shape[-1])
+    gx = ops.MatMul()(gy, w)
+    gx = gx.reshape(*x_shape[:-1], gx.shape[-1])
+    gW = ops.MatMul(True)(x, gy)
+    return gx, gW.T, gb
 
 class Linear(Function):
     @staticmethod
     def forward(ctx: Context, x, w, b):
-        # y = raw_matmul(x, w, transpose_b=True)
-        # if b is not None:
-        #     y = raw_add(y, b)
-        y = fused_linear(x, w, b)
+        y = ops.matmul(x, Tensor(w).T)
+        if b is not None:
+            y = ops.add(y, b)
+        # y = fused_linear(x, w, b)
         # y = raw_linear(x, w, b)
         return y
 
@@ -116,16 +143,16 @@ class Linear(Function):
         # gx = matmul(gy, W)
         # gW = matmul(x, gy, transpose_a=True)
         # return gx, gW.T, tensor(gb)
-        gx, gw, gb = fused_linear_grad(x.data, W.data, b.data, gy.data)
+        gx, gw, gb = _pack_linear_grad(x.data, W.data, b.data, gy.data)
         # gx, gw, _ = raw_linear_grad(x.data, W.data, gy.data)
-        return tensor(gx), tensor(gw), tensor(gb)
+        return tensor(gx.stub_sync()), tensor(gw.stub_sync()), tensor(gb.stub_sync())
 
 class Conv2d(Function):
     @staticmethod
     def forward(ctx: Context, x, w, out_channel, kernel_size, pad_mode="valid", pad=0, stride=1, dilation=1, groups=1):
         ctx.save_for_backward(out_channel, kernel_size, pad_mode, pad, stride, dilation, groups)
-
-        y = raw_conv2d(x, w, out_channel, kernel_size, pad_mode, pad, stride, dilation, groups)
+        conv2d = ops.Conv2D(out_channel, kernel_size, 1, pad_mode, pad, stride, dilation, groups)
+        y = conv2d(x, w)
         return y
 
     @staticmethod
@@ -146,8 +173,8 @@ class Conv2dGx(Function):
                stride=1, dilation=1, groups=1):
 
         ctx.save_for_backward(out_channel, kernel_size, pad_mode, pad, pad_list, stride, dilation, groups)
-
-        y = raw_conv2d_gx(gy, w, x_shape, out_channel, kernel_size, pad_mode, pad, pad_list, stride, dilation, groups)
+        _conv2d_gx = ops.Conv2DBackpropInput(out_channel, kernel_size, pad_mode, pad, pad_list, 1, stride, dilation, groups)
+        y = _conv2d_gx(gy, w, x_shape)
         return y
 
     @staticmethod
@@ -169,8 +196,8 @@ class Conv2dGw(Function):
                stride=1, dilation=1, groups=1):
 
         ctx.save_for_backward(out_channel, kernel_size, pad_mode, pad, pad_list, stride, dilation, groups)
-
-        y = raw_conv2d_gw(gy, x, w_shape, out_channel, kernel_size, pad_mode, pad, pad_list, stride, dilation, groups)
+        _conv2d_gw = Conv2DBackpropFilter(out_channel, kernel_size, pad_mode, pad, pad_list, 1, stride, dilation, groups)
+        y = _conv2d_gw(gy, x, w_shape)
         return y
 
     @staticmethod
@@ -190,13 +217,14 @@ def conv2d_gw(gy, x, w_shape, out_channel, kernel_size, pad_mode="valid", pad=0,
 class BiasAdd(Function):
     @staticmethod
     def forward(ctx: Context, x0, x1):
-        y = raw_bias_add(x0, x1)
+        y = ops.bias_add(x0, x1)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
-        gb = raw_bias_add_grad(gy.data)
-        return gy, tensor(gb)
+        _bias_add_grad = BiasAddGrad()
+        gb = _bias_add_grad(gy.data)
+        return gy, tensor(gb.stub_sync())
 
 def _bias_add(x, b):
     return BiasAdd.apply(x, b)
@@ -204,40 +232,41 @@ def _bias_add(x, b):
 class Dropout(Function):
     @staticmethod
     def forward(ctx: Context, x, dropout):
-        y, mask = raw_dropout(x, dropout)
-        ctx.save_for_backward(mask, dropout)
+        y, mask = ops.Dropout(1-dropout)(x)
+        ctx.save_for_backward(mask.stub_sync(), dropout)
         return y
 
     @staticmethod
     def backward(ctx: Context, gy):
         mask, dropout = ctx.saved_tensors
-        gx = fused_dropout_grad(gy.data, mask, dropout)
-        return tensor(gx)
+        _dropout_grad = DropoutGrad(1-dropout)
+        gx = _dropout_grad(gy.data, mask)
+        return tensor(gx.stub_sync())
 
 
-class DropoutGrad(Function):
-    @staticmethod
-    def forward(ctx: Context, x, mask, dropout):
-        gx = raw_dropout_grad(x, mask, dropout)
-        ctx.save_for_backward(mask, dropout)
-        return gx
+# class DropoutGrad(Function):
+#     @staticmethod
+#     def forward(ctx: Context, x, mask, dropout):
+#         gx = raw_dropout_grad(x, mask, dropout)
+#         ctx.save_for_backward(mask, dropout)
+#         return gx
 
-    @staticmethod
-    def backward(ctx: Context, gy):
-        mask, dropout = ctx.saved_tensors
-        mask = tensor(mask)
-        gx = _dropout_grad(gy, mask, dropout)
-        return gx, zeros_like(mask)
+#     @staticmethod
+#     def backward(ctx: Context, gy):
+#         mask, dropout = ctx.saved_tensors
+#         mask = tensor(mask)
+#         gx = _dropout_grad(gy, mask, dropout)
+#         return gx, zeros_like(mask)
 
-def _dropout_grad(x, mask, dropout):
-    return DropoutGrad.apply(x, mask, dropout=dropout)
+# def _dropout_grad(x, mask, dropout):
+#     return DropoutGrad.apply(x, mask, dropout=dropout)
 
 
 class MaxPool(Function):
     @staticmethod
     def forward(ctx: Context, x, kernel_size, strides=None, pads=0, dilation=(1, 1), ceil_mode=False, return_indices=False):
-        out, indices = raw_maxpool(x, kernel_size, strides, pads, dilation, ceil_mode)
-        ctx.save_for_backward(kernel_size, strides, pads, dilation, ceil_mode, indices)
+        out, indices = ops.MaxPoolWithArgmaxV2(kernel_size, strides, pads, dilation, ceil_mode)(x)
+        ctx.save_for_backward(kernel_size, strides, pads, dilation, ceil_mode, indices.stub_sync())
         if return_indices:
             return out, indices
         return out
@@ -256,7 +285,8 @@ def _maxpool(x, kernel_size, strides=None, pads=0, dilation=(1, 1), ceil_mode=Fa
 class MaxPoolGrad(Function):
     @staticmethod
     def forward(ctx: Context, x, grad, argmax, kernel_size, strides=None, pads=0, dilation=(1, 1), ceil_mode=False):
-        return raw_maxpool_grad(x, grad, argmax, kernel_size, strides, pads, dilation, ceil_mode)
+        _maxpool_grad = MaxPoolGradWithArgmaxV2(kernel_size, strides, pads, dilation, ceil_mode)
+        return _maxpool_grad(x, grad, argmax)
 
 def _maxpool_grad(x, grad, argmax, kernel_size, strides=None, pads=0, dilation=(1, 1), ceil_mode=False):
     return MaxPoolGrad.apply(x, grad, argmax, kernel_size=kernel_size, strides=strides, pads=pads,
@@ -265,42 +295,43 @@ def _maxpool_grad(x, grad, argmax, kernel_size, strides=None, pads=0, dilation=(
 class NLLLoss(Function):
     @staticmethod
     def forward(ctx: Context, input, target, weight, ignore_index, reduction):
-        out, total_weight = raw_nll_loss(input, target, weight, ignore_index, reduction)
-        ctx.save_for_backward(ignore_index, reduction, total_weight)        
+        out, total_weight = ops.NLLLoss(reduction, ignore_index)(input, target, weight)
+        ctx.save_for_backward(ignore_index, reduction, total_weight.stub_sync())        
         return out
 
     @staticmethod
     def backward(ctx: Context, gy):
         input, target, weight = ctx.inputs
         ignore_index, reduction, total_weight = ctx.saved_tensors
-        gx = raw_nll_loss_grad(input.data, gy.data, target.data, weight.data,
-                               total_weight, ignore_index, reduction)
-        return tensor(gx), zeros_like(target), zeros_like(weight)
+        _nll_loss_grad = NLLLossGrad(reduction, ignore_index)
+        gx = _nll_loss_grad(input.data, gy.data, target.data, weight.data, total_weight)
+        return tensor(gx.stub_sync()), zeros_like(target), zeros_like(weight)
 
 class LayerNorm(Function):
     @staticmethod
     def forward(ctx: Context, input, weight, bias, begin_norm_axis=1, begin_params_axis=1, epsilon=1e-7):
-        out, mean, var = raw_layer_norm(input, weight, bias, begin_norm_axis, begin_params_axis, epsilon)
-        ctx.save_for_backward(mean, var, begin_norm_axis, begin_params_axis)
+        _layer_norm = ops.LayerNorm(begin_norm_axis, begin_params_axis, epsilon)
+        out, mean, var = _layer_norm(input, weight, bias)
+        ctx.save_for_backward(mean.stub_sync(), var.stub_sync(), begin_norm_axis, begin_params_axis)
         return out
 
     @staticmethod
     def backward(ctx: Context, gy):
         input, weight, _ = ctx.inputs
         mean, var, begin_norm_axis, begin_params_axis = ctx.saved_tensors
-        gx, gw, gb = raw_layer_norm_grad(input.data, gy.data, mean, var, weight.data,
-                                         begin_norm_axis, begin_params_axis)
-        return tensor(gx, requires_grad=gy.requires_grad), \
-               tensor(gw, requires_grad=gy.requires_grad), \
-               tensor(gb, requires_grad=gy.requires_grad)
+        _layer_norm_grad = LayerNormGrad(begin_norm_axis, begin_params_axis)
+        gx, gw, gb = _layer_norm_grad(input.data, gy.data, mean, var, weight.data)
+        return tensor(gx.stub_sync(), requires_grad=gy.requires_grad), \
+               tensor(gw.stub_sync(), requires_grad=gy.requires_grad), \
+               tensor(gb.stub_sync(), requires_grad=gy.requires_grad)
 
-class Unfold(Function):
-    @staticmethod
-    def forward(ctx: Context, input, kernel_size, dilation=1, padding=0, stride=1):
-        return raw_unfold(input, kernel_size, stride, dilation, padding)
+# class Unfold(Function):
+#     @staticmethod
+#     def forward(ctx: Context, input, kernel_size, dilation=1, padding=0, stride=1):
+#         return raw_unfold(input, kernel_size, stride, dilation, padding)
 
-    @staticmethod
-    def backward(ctx: Context, gy):
-        pass
+#     @staticmethod
+#     def backward(ctx: Context, gy):
+#         pass
 
 

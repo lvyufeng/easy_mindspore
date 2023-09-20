@@ -19,13 +19,13 @@ class TestSum(unittest.TestCase):
 
     def test_forward2(self):
         x = tensor(np.random.rand(10, 20, 30))
-        y = sum(x, axis=1)
+        y = sum(x, dim=1)
         expected = np.sum(x.numpy(), axis=1)
         self.assertTrue(np.allclose(y.numpy(), expected))
 
     def test_forward3(self):
         x = tensor(np.random.rand(10, 20, 30))
-        y = sum(x, axis=1, keepdims=True)
+        y = sum(x, dim=1, keepdims=True)
         expected = np.sum(x.numpy(), axis=1, keepdims=True)
         self.assertTrue(np.allclose(y.numpy(), expected))
 
@@ -36,17 +36,17 @@ class TestSum(unittest.TestCase):
 
     def test_backward2(self):
         x_data = tensor(np.random.rand(10, 10), requires_grad=True)
-        f = lambda x: sum(x, axis=1)
+        f = lambda x: sum(x, dim=1)
         self.assertTrue(gradient_check(f, x_data))
 
     def test_backward3(self):
         x_data = tensor(np.random.rand(10, 20, 20), requires_grad=True)
-        f = lambda x: sum(x, axis=2)
+        f = lambda x: sum(x, dim=2)
         self.assertTrue(gradient_check(f, x_data))
 
     def test_backward4(self):
         x_data = tensor(np.random.rand(10, 20, 20), requires_grad=True)
-        f = lambda x: sum(x, axis=None)
+        f = lambda x: sum(x, dim=None)
         self.assertTrue(gradient_check(f, x_data))
 
 

@@ -3,12 +3,20 @@ from typing import Tuple, Any, Optional, Type, Sequence
 import weakref
 from mindtorch import Tensor
 from mindtorch.config import Config
+from mindspore.common._stub_tensor import StubTensor
 
 def wrap_tuple(x):  # type: ignore
     "Turn a possible value into a tuple"
     if isinstance(x, tuple):
         return x
     return (x,)
+
+def wrap_stub_tuple(x):  # type: ignore
+    "Turn a possible value into a tuple"
+    if isinstance(x, tuple):
+        return tuple([i.stub_sync() if isinstance(i, StubTensor) else i for i in x])
+    return (x.stub_sync() if isinstance(x, StubTensor) else x,)
+
 
 @dataclass(unsafe_hash=True)
 class Context:
@@ -37,7 +45,7 @@ class Function:
 
     @classmethod
     def _forward(cls, ctx: Context, *inps: Tensor, **kwargs) -> Tensor:
-        return wrap_tuple(cls.forward(ctx, *inps, **kwargs))  # type: ignore
+        return wrap_stub_tuple(cls.forward(ctx, *inps, **kwargs))  # type: ignore
 
     @classmethod
     def apply(cls, *vals: Tensor, **kwargs):
