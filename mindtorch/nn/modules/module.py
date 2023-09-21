@@ -34,7 +34,6 @@ class Module:
         self._modules = OrderedDict()
         self.training = True
 
-
     def parameters(self):
         """Returns an iterator over module parameters.
 
