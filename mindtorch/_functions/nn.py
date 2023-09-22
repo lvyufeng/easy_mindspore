@@ -107,6 +107,7 @@ class SoftmaxCrossEntropyAscend(Function):
         return grad, zeros_like(labels)
 
 def _pack_linear_grad(x, w, b, gy):
+    # print(type(x), type(w), type(b), type(gy))
     ndim = len(b.shape)
     lead = gy.ndim - ndim
     lead_axis = tuple(range(lead))
@@ -119,8 +120,8 @@ def _pack_linear_grad(x, w, b, gy):
     x_shape = x.shape
     if gy.ndim != 2:
         gy = gy.reshape(-1, gy.shape[-1])
-    if x.ndim != 2:
-        x = x.reshape(-1, x_shape[-1])
+    if len(x.shape) != 2:
+        x = ops.reshape(x, (-1, x_shape[-1]))
     gx = ops.MatMul()(gy, w)
     gx = gx.reshape(*x_shape[:-1], gx.shape[-1])
     gW = ops.MatMul(True)(x, gy)
@@ -129,7 +130,17 @@ def _pack_linear_grad(x, w, b, gy):
 class Linear(Function):
     @staticmethod
     def forward(ctx: Context, x, w, b):
-        y = ops.matmul(x, Tensor(w).T)
+        print(type(x), type(w))
+        if len(x.shape) == 1:
+            x = ops.unsqueeze(x, 0)
+            y = ops.matmul(x, Tensor(w).T)
+            y = ops.squeeze(y, 0)
+        elif len(w.shape) == 1:
+            w = ops.unsqueeze(x, 1)
+            y = ops.matmul(x, Tensor(w).T)
+            y = ops.squeeze(y, 1)
+        else:
+            y = ops.matmul(x, Tensor(w).T)
         if b is not None:
             y = ops.add(y, b)
         # y = fused_linear(x, w, b)
@@ -333,5 +344,3 @@ class LayerNorm(Function):
 #     @staticmethod
 #     def backward(ctx: Context, gy):
 #         pass
-
-

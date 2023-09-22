@@ -163,6 +163,8 @@ class Tensor:
         if gradient is None:
             if self.shape == ():
                 gradient = tensor(1, dtype=self.dtype)
+            elif self.shape == (1,):
+                gradient = tensor([1], dtype=self.dtype)
             else:
                 raise RuntimeError("grad must specified for non-0-tensor")
 
@@ -192,8 +194,10 @@ class Tensor:
                 for x, gx in zip(f.ctx.inputs, gxs):
                     if x.grad is None:
                         x.grad = gx
+                        print('first_time', gx)
                     else:
                         x.grad = x.grad + gx
+                        print('second_time', x.grad)
 
                     if x.creator is not None:
                         add_func(x.creator)
@@ -264,7 +268,7 @@ class Tensor:
         return self
 
     def detach(self):
-        return self
+        return tensor(self.data, self.dtype)
 
     def __iadd__(self, other) -> 'Tensor':
         """

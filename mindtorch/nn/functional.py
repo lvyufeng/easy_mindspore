@@ -6,7 +6,7 @@ from mindtorch.dtype import typing
 from mindtorch import BACKEND
 from .._tensor import Tensor, Dependency
 from mindtorch._functions import ReLU, GELU, SoftmaxCrossEntropy, Linear, SoftmaxCrossEntropyAscend, LogSoftmax, \
-    ones, matmul, uniform
+    ones, matmul, uniform, square
 from mindtorch._functions.nn import _conv2d, _bias_add, Dropout, _maxpool, NLLLoss, LayerNorm, \
     Softmax, GELUErf
 
@@ -70,6 +70,15 @@ def softmax_cross_entropy(logits, labels):
         outputs = SoftmaxCrossEntropyAscend.apply(logits, labels)
         return outputs.mean()
     return SoftmaxCrossEntropy.apply(logits, labels)
+
+def mse_loss(logits, labels, reduction='mean'):
+    output = square(logits - labels)
+    if reduction == 'mean':
+        return output.mean()
+    if reduction == 'sum':
+        return output.sum()
+    return output
+    
 
 def dropout(x: Tensor, p:int=0.5, training:bool=True) -> Tensor:
     """
