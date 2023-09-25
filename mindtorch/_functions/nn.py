@@ -130,7 +130,6 @@ def _pack_linear_grad(x, w, b, gy):
 class Linear(Function):
     @staticmethod
     def forward(ctx: Context, x, w, b):
-        print(type(x), type(w))
         if len(x.shape) == 1:
             x = ops.unsqueeze(x, 0)
             y = ops.matmul(x, Tensor(w).T)

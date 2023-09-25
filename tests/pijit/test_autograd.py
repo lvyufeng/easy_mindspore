@@ -157,3 +157,48 @@ def test_two_net_connect_without_detach():
     assert func_1.Linear.weight.grad is not None
     assert func_1.Linear.bias.grad is not None
 
+def test_share_weight():
+    x = torch.tensor([1.0])
+    y = torch.tensor([2.0])
+
+    func_0 = Function()
+    func_1 = Function()
+    loss_fn = torch.nn.MSELoss()
+    # not share weight
+    y_0 = func_0(x)
+    y_1 = func_1(y_0)
+    loss = loss_fn(y_1, y)
+    loss.backward()
+    
+    print(func_0.Linear.weight.grad.data)
+    print(func_1.Linear.weight.grad.data)
+
+    assert func_0.Linear.weight.grad != func_1.Linear.weight.grad
+    
+    func_0_weight_not_shared = copy.deepcopy(func_0.Linear.weight.grad)
+    func_1_weight_not_shared = copy.deepcopy(func_1.Linear.weight.grad)
+    print(func_0_weight_not_shared, func_1_weight_not_shared)
+    # zero_grad
+    func_0.zero_grad()
+    func_1.zero_grad()
+    # share weight
+    func_1.Linear.weight = func_0.Linear.weight
+    y_0 = func_0(x)
+    y_1 = func_1(y_0)
+    loss = loss_fn(y_1, y)
+    loss.backward()
+
+    print(func_0.Linear.weight.grad, func_1.Linear.weight.grad)
+    assert func_0.Linear.weight == func_1.Linear.weight
+    assert func_0.Linear.weight.grad == func_1.Linear.weight.grad
+    assert func_0.Linear.weight.grad != func_0_weight_not_shared
+    assert func_0.Linear.weight.grad != func_1_weight_not_shared
+
+def test_vanilla_backward():
+    x = torch.tensor([1.0], requires_grad=True)
+    y = x * 2
+    z = y + x
+    z.backward()
+    
+    assert x.grad is not None
+    assert x.grad.numpy() == [3]

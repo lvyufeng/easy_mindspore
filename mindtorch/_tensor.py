@@ -194,10 +194,8 @@ class Tensor:
                 for x, gx in zip(f.ctx.inputs, gxs):
                     if x.grad is None:
                         x.grad = gx
-                        print('first_time', gx)
                     else:
                         x.grad = x.grad + gx
-                        print('second_time', x.grad)
 
                     if x.creator is not None:
                         add_func(x.creator)
@@ -384,7 +382,7 @@ class Tensor:
 
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \
-        matmul, get_item, equal, less, le, greater, ge, sqrt, chunk
+        matmul, get_item, equal, less, le, greater, ge, sqrt, chunk, not_equal
     Tensor.add = add
     Tensor.eq = equal
     Tensor.sqrt = sqrt
@@ -402,6 +400,7 @@ def setup_tensor():
     Tensor.__matmul__ = matmul
     Tensor.__getitem__ = get_item
     Tensor.__eq__ = equal
+    Tensor.__ne__ = not_equal
     Tensor.__lt__ = less
     Tensor.__le__ = le
     Tensor.__gt__ = greater

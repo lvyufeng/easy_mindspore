@@ -247,6 +247,15 @@ def equal(x, y):
         return Equal.apply(x, y, requires_grad=False)
     return Equal.apply(x, y=y, requires_grad=False)
 
+class NotEqual(Function):
+    @staticmethod
+    def forward(ctx: Context, x, y):
+        return ops.ne(x, y)
+
+def not_equal(x, y):
+    if isinstance(y, Tensor):
+        return NotEqual.apply(x, y, requires_grad=False)
+
 class Less(Function):
     @staticmethod
     def forward(ctx: Context, x, y):
