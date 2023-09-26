@@ -2,12 +2,12 @@ import re
 import numpy as np
 from typing import List, NamedTuple, Callable, Optional, Union
 from mindspore._c_expression import Tensor as Array  # pylint: disable=E0611
-from mindspore.common.api import _pynative_executor as executor
+from mindspore.common._stub_tensor import StubTensor
+
 import mindtorch
 from mindtorch.config import using_config
 from mindtorch import dtype
 from .utils import NORMAL_DTYPE_MAP, _get_unfold_indices
-import ctypes
 
 def _uniform(self, a, b):
     dtype = self.dtype
@@ -37,13 +37,15 @@ class Dependency(NamedTuple):
     grad_fn: Callable[[Array], Array]
 
 
-Arrayable = Union[float, list, int, Array, np.ndarray]
+Arrayable = Union[float, list, int, Array, StubTensor, np.ndarray]
 
 def ensure_array(arrayable: Arrayable, dtype) -> Array:
     if isinstance(arrayable, Tensor):
         return arrayable.data
     if isinstance(arrayable, Array):
         return arrayable
+    if isinstance(arrayable, StubTensor):
+        return arrayable.stub_sync()
     if dtype is None:
         if isinstance(arrayable, (list, tuple)):
             arrayable = np.array(arrayable)
@@ -81,7 +83,7 @@ class Tensor:
                  ) -> None:
         dtype = kwargs.get('dtype', mindtorch.float32)
         # object data
-        if isinstance(args[0], (list, Tensor, Array, np.ndarray)):
+        if isinstance(args[0], (list, Tensor, Array, StubTensor, np.ndarray)):
             if len(args) == 1:
                 self.data = ensure_array(args[0], dtype)
             else:

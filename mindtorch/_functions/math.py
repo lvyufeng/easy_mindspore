@@ -60,7 +60,7 @@ class BatchMatMul(Function):
         #     gW = gW.T
         # return gx, gW
         gx, gw = _pack_bmm_grad(x.data, W.data, gy.data)
-        return tensor(gx.stub_sync()), tensor(gw.stub_sync())
+        return tensor(gx), tensor(gw)
 
 
 def batch_matmul(x, w):

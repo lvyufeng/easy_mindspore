@@ -11,11 +11,11 @@ def wrap_tuple(x):  # type: ignore
         return x
     return (x,)
 
-def wrap_stub_tuple(x):  # type: ignore
-    "Turn a possible value into a tuple"
-    if isinstance(x, tuple):
-        return tuple([i.stub_sync() if isinstance(i, StubTensor) else i for i in x])
-    return (x.stub_sync() if isinstance(x, StubTensor) else x,)
+# def wrap_stub_tuple(x):  # type: ignore
+#     "Turn a possible value into a tuple"
+#     if isinstance(x, tuple):
+#         return tuple([i.stub_sync() if isinstance(i, StubTensor) else i for i in x])
+#     return (x.stub_sync() if isinstance(x, StubTensor) else x,)
 
 
 @dataclass(unsafe_hash=True)
@@ -31,7 +31,7 @@ class Context:
         "Store the given `values` if they need to be used during backpropagation."
         if self.no_grad:
             return
-        self.saved_values = values
+        self.saved_values = tuple(value.stub_sync() if isinstance(value, StubTensor) else value for value in values)
 
     @property
     def saved_tensors(self) -> Tuple[Any, ...]:
@@ -45,7 +45,7 @@ class Function:
 
     @classmethod
     def _forward(cls, ctx: Context, *inps: Tensor, **kwargs) -> Tensor:
-        return wrap_stub_tuple(cls.forward(ctx, *inps, **kwargs))  # type: ignore
+        return wrap_tuple(cls.forward(ctx, *inps, **kwargs))  # type: ignore
 
     @classmethod
     def apply(cls, *vals: Tensor, **kwargs):

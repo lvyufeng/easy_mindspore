@@ -5,7 +5,6 @@ from mindspore.ops._primitive_cache import _get_cache_prim
 from mindtorch.autograd import Function, Context
 from mindtorch._functions import utils
 from mindtorch import dtype, tensor, Tensor
-from .utils import ensure_tensor
 from .creation import zeros_like
 # =============================================================================
 # Tensor operations: reshape / transpose / expand_dims / flatten
@@ -234,7 +233,7 @@ class LogSoftmax(Function):
         y, = ctx.outputs
         _log_softmax_grad = LogSoftmaxGrad(axis)
         gx = _log_softmax_grad(y().data, gy.data)
-        return tensor(gx.stub_sync(), gy.requires_grad)
+        return tensor(gx, gy.requires_grad)
 
 # cmp operators
 class Equal(Function):
