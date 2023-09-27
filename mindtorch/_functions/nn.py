@@ -109,17 +109,17 @@ class SoftmaxCrossEntropyAscend(Function):
 def _pack_linear_grad(x, w, b, gy):
     # print(type(x), type(w), type(b), type(gy))
     ndim = len(b.shape)
-    lead = gy.ndim - ndim
+    lead = len(gy.shape) - ndim
     lead_axis = tuple(range(lead))
 
     axis = tuple([i + lead for i, sx in enumerate(b.shape) if sx == 1])
-    gb = gy.sum(lead_axis + axis, keepdims=True)
+    gb = ops.ReduceSum(True)(gy, lead_axis + axis)
     if lead > 0:
         gb = gb.squeeze(lead_axis)
 
     x_shape = x.shape
-    if gy.ndim != 2:
-        gy = gy.reshape(-1, gy.shape[-1])
+    if len(gy.shape) != 2:
+        gy = ops.reshape(gy, (-1, gy.shape[-1]))
     if len(x.shape) != 2:
         x = ops.reshape(x, (-1, x_shape[-1]))
     gx = ops.MatMul()(gy, w)

@@ -6,7 +6,7 @@ from .dtype import *
 from .config import no_grad
 from ._tensor import Tensor, setup_tensor, tensor, is_tensor
 from ._functions import ones, zeros, flatten, uniform, randn, zeros_like, ones_like, sqrt, \
-    cat, bmm, erf
+    cat, bmm, erf, equal, tanh, matmul, mm
 from mindtorch import cuda as cuda
 from . import nn
 from . import optim

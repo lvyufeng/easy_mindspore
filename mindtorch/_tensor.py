@@ -149,6 +149,7 @@ class Tensor:
     def __repr__(self):
         if self.data is None:
             return 'Tensor(None)'
+        self.data.data_sync(True)
         p = str(self.data.asnumpy()).replace('\n', '\n' + ' ' * 9)
         return f'Tensor({p})'
 
@@ -347,6 +348,10 @@ class Tensor:
         self.data = mindtorch._operations.raw_masked_fill(self.data, mask, value)
         return self
 
+    def requires_grad_(self, mode):
+        assert isinstance(mode, bool)
+        self.requires_grad = mode
+
     def float(self):
         return mindtorch._functions.cast(self, dtype.float)
 
@@ -381,6 +386,9 @@ class Tensor:
             return value
         else:
             return 0
+    
+    def __bool__(self):
+        return bool(self.data.asnumpy())
 
 def setup_tensor():
     from mindtorch._functions import add, mul, neg, sub, rsub, div, rdiv, pow, \

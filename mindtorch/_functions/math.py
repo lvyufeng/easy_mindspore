@@ -34,6 +34,8 @@ class MatMul(Function):
 def matmul(x, w, transpose_a=False, transpose_b=False):
     return MatMul.apply(x, w, transpose_a=transpose_a, transpose_b=transpose_b)
 
+mm = matmul
+
 _fused_bmm0 = ops.BatchMatMul(transpose_b=True)
 _fused_bmm1 = ops.BatchMatMul(transpose_a=True)
 def _pack_bmm_grad(x, w, gy):
