@@ -9,6 +9,9 @@ int main() {
     Tensor<int> t2(5, true);
 
     Tensor<int> result1 = t1 + t2;
+    std::cout << "t1 shape: " << t1.getSize() << std::endl;
+    std::cout << "t2 shape: " << t2.getSize() << std::endl;
+
     std::cout << "Result: " << result1.getData() << std::endl;
     // 调用 add 函数进行相加
     Tensor<int> result = add(t1, t2);
@@ -29,8 +32,8 @@ int main() {
     std::cout << "Grad Node: " << (grad_fn ? "Not nullptr" : "nullptr") << std::endl;
 
 
-    // auto backward_out = grad_fn->apply({t1});
-    // std::cout << "Result: " << backward_out.empty() << std::endl;
+    auto backward_out = grad_fn->apply(t1);
+    std::cout << "Result: " << backward_out.empty() << std::endl;
 
     return 0;
 }
