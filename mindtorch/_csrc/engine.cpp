@@ -2,12 +2,14 @@
 #include <vector>
 #include <unordered_map>
 #include <queue>
+#include "tensor.h"
 
 class Edge;
+
 // Abstract base class for Node
 class Node {
 public:
-    virtual std::vector<double> apply(const std::vector<double>& grad_outputs) = 0;
+    virtual std::vector<Tensor> apply(Tensor& grad_outputs) = 0;
     void setNextEdges(const std::vector<Edge>& next_edges) {
         nextEdges = next_edges;
     }
@@ -23,20 +25,21 @@ protected:
 class Edge {
 public:
     Node* node;
+    Edge() : node(nullptr) {}
     Edge(Node* n) : node(n) {}
 };
 // NodeTask class
 class NodeTask {
 public:
     Node* node;
-    std::vector<double> gradInput;
-    // Default constructor
-    // NodeTask() : node(nullptr) {}
-    NodeTask(Node* n, const std::vector<double>& grad_input) : node(n), gradInput(grad_input) {}
+    Tensor gradInput;
 
-    void updateGradInput(const std::vector<double>& grad_input) {
-        for (size_t i = 0; i < gradInput.size(); ++i) {
-            gradInput[i] += grad_input[i];
+    // Parameterized constructor
+    NodeTask(Node* n, const Tensor& grad_input) : node(n), gradInput(grad_input) {}
+
+    void updateGradInput(const Tensor& grad_input) {
+        for (size_t i = 0; i < this->gradInput.size(); ++i) {
+            this->gradInput[i] += grad_input[i];
         }
     }
 };
@@ -44,7 +47,7 @@ public:
 // Engine class
 class Engine {
 public:
-    void execute(Node* tensor, const std::vector<double>& grad_input) {
+    void execute(Node* tensor, const Tensor& grad_input) {
         std::unordered_map<Node*, int> dependencies = computeDependencies(tensor);
         std::unordered_map<Node*, NodeTask> notReadyDict;
         std::deque<NodeTask> readyQueue = {NodeTask(tensor, grad_input)};
@@ -52,22 +55,27 @@ public:
         while (!readyQueue.empty()) {
             NodeTask nodeTask = readyQueue.front();
             readyQueue.pop_front();
-            std::vector<double> gradOutputs = nodeTask.node->apply(nodeTask.gradInput);
+            std::vector<Tensor> gradOutputs = nodeTask.node->apply(nodeTask.gradInput);
 
             if (gradOutputs.empty()) {
                 continue;
             }
 
             for (size_t i = 0; i < gradOutputs.size(); ++i) {
+                std::cout << i << std::endl;
+
                 Edge edge = nodeTask.node->getNextEdges()[i];
                 Node* nextNode = edge.node;
 
+                if (!nextNode){
+                    continue;
+                }
                 dependencies[nextNode] -= 1;
 
                 if (notReadyDict.find(nextNode) == notReadyDict.end()) {
-                    notReadyDict[nextNode] = NodeTask(nextNode, gradOutputs);
+                    notReadyDict[nextNode] = NodeTask(nextNode, gradOutputs[i]);
                 } else {
-                    notReadyDict[nextNode].updateGradInput(gradOutputs);
+                    notReadyDict[nextNode].updateGradInput(gradOutputs[i]);
                 }
 
                 if (dependencies[nextNode] == 0) {
