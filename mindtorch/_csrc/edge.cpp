@@ -5,6 +5,6 @@
 
 Edge::Edge(Node* node) : node(node) {}
 
-Node* Edge::get_node() const {
+Node* Edge::getNode() const {
     return node;
 }

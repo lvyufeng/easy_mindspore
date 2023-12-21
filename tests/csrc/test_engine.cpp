@@ -2,8 +2,8 @@
 
 #include "../../mindtorch/_csrc/tensor.h"
 #include "../../mindtorch/_csrc/node.h"
-#include "../../mindtorch/_csrc/node_task.h"
 #include "../../mindtorch/_csrc/functional.h"
+#include "../../mindtorch/_csrc/node_task.cpp"
 #include "../../mindtorch/_csrc/engine.cpp"
 
 int main() {
@@ -21,11 +21,12 @@ int main() {
     Engine<int> engine;
     engine.execute(result, grad_input);
 
-    // 获取计算得到的梯度值
-    Tensor<int>* grad_output_ptr = result.getGrad();
-    Tensor<int> grad_output = *grad_output_ptr;
     // 输出梯度值
-    std::cout << "Gradient Output: " << grad_output.getData() << std::endl;
+    std::cout << "t1 grad value: " << (t1.getGrad() ? "not null": "null") << std::endl;
+    std::cout << "t1 grad_fn: " << (t1.getGradFn() ? "not null": "null") << std::endl;
+
+    std::cout << "t1 grad: " << t1.getGrad()->getData() << std::endl;
+    std::cout << "t2 grad: " << t2.getGrad()->getData() << std::endl;
 
     return 0;
 }

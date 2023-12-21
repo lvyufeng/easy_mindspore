@@ -18,7 +18,7 @@ public:
     AccumulateGrad(Tensor<T>* leaf_tensor);
 
     // apply 方法的实现
-    std::vector<Tensor<T>> apply(std::vector<Tensor<T>>& grad_output);
+    std::vector<Tensor<T>> apply(Tensor<T>& grad_output);
 };
 
 template <typename T>
@@ -32,7 +32,7 @@ public:
     AddBackward();
 
     // apply 方法的声明
-    std::vector<T> apply(const Tensor<T>& grad_output);
+    std::vector<Tensor<T>> apply(Tensor<T>& grad_output);
 
     // 设置 t1_shape 的声明
     void set_t1_shape(const T& shape);

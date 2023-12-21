@@ -45,6 +45,7 @@ void process_tensor(std::vector<Edge>& next_edges, Tensor<T>& t) {
     if (t.getRequiresGrad()) {
         auto grad_fn = t.getGradFn();
         if (grad_fn == nullptr) {
+            std::cout << "grad_fn is null" << std::endl;
             auto grad_fn = new AccumulateGrad<T>(&t);
             t.setGradFn(grad_fn);
             next_edges.push_back(Edge(grad_fn));

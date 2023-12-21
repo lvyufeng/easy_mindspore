@@ -12,7 +12,7 @@ public:
     Edge(Node* node);
 
     // 获取节点
-    Node* get_node() const;
+    Node* getNode() const;
 };
 
 #include "edge.cpp"
