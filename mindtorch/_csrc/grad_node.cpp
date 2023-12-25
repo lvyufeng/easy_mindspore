@@ -9,8 +9,6 @@ AccumulateGrad<T>::AccumulateGrad(Tensor<T>* leaf_tensor) : leaf_tensor(leaf_ten
 template <typename T>
 std::vector<Tensor<T>> AccumulateGrad<T>::apply(Tensor<T>& grad_output) {
     if (leaf_tensor->getGrad() == nullptr) {
-        std::cout << "leaf tensor: " << leaf_tensor->getData() << std::endl;
-        std::cout << "leaf grad_output: " << grad_output.getData() << std::endl;
         leaf_tensor->setGrad(grad_output);
     } else {
         leaf_tensor->setGrad(*(leaf_tensor->getGrad()) + grad_output);
@@ -26,12 +24,13 @@ AddBackward<T>::AddBackward() : t1_shape(0), t2_shape(0) {}
 template <typename T>
 std::vector<Tensor<T>> AddBackward<T>::apply(Tensor<T>& grad_output) {
     std::vector<Tensor<T>> grad_input;
-    std::cout << "add grad output: " << grad_output.getData() << std::endl;
     if (t1_shape != 0) {
-        grad_input.push_back(grad_output);
+        Tensor<T> x = grad_output;
+        grad_input.push_back(x);
     }
     if (t2_shape != 0) {
-        grad_input.push_back(grad_output);
+        Tensor<T> y = grad_output;
+        grad_input.push_back(y);
     }
     return grad_input;
 }

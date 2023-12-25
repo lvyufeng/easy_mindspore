@@ -7,9 +7,9 @@
 template <typename T>
 class NodeTask {
 public:
-    NodeTask(Node* node, Tensor<T>& grad_input);
-    void update_grad_input(const Tensor<T>& grad_input);
+    NodeTask(Node* node, Tensor<T> grad_input);
+    void update_grad_input(const Tensor<T> grad_input);
 
     Node* node;
-    Tensor<T>& grad_input;
+    Tensor<T> grad_input;
 };

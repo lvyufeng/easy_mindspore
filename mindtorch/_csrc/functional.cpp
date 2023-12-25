@@ -9,7 +9,6 @@ inline Tensor<int> add(Tensor<int>& t1, Tensor<int>& t2) {
     // 计算数据和 requires_grad
     auto out = t1 + t2;
     bool requires_grad = t1.getRequiresGrad() || t2.getRequiresGrad();
-    std::cout << "Intermediate Value: " << requires_grad << std::endl;
     if (requires_grad) {
         // 创建 AddBackward 节点
         auto add_bw = new AddBackward<int>();
@@ -45,7 +44,6 @@ void process_tensor(std::vector<Edge>& next_edges, Tensor<T>& t) {
     if (t.getRequiresGrad()) {
         auto grad_fn = t.getGradFn();
         if (grad_fn == nullptr) {
-            std::cout << "grad_fn is null" << std::endl;
             auto grad_fn = new AccumulateGrad<T>(&t);
             t.setGradFn(grad_fn);
             next_edges.push_back(Edge(grad_fn));
