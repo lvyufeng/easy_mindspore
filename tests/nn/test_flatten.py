@@ -1,5 +1,5 @@
-from mindtorch import nn
-from mindtorch import ones
+from easy_mindspore import nn
+from easy_mindspore.ops import ones
 
 def test_flatten():
     input = ones(32, 1, 5, 5)

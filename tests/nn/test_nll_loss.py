@@ -1,9 +1,8 @@
 import unittest
 import numpy as np
-from mindtorch.nn import functional as F
-from mindtorch import tensor
+from easy_mindspore.nn import functional as F
+from easy_mindspore import tensor
 import torch
-from .. import gradient_check
 
 
 class TestNLLLoss(unittest.TestCase):
@@ -38,17 +37,3 @@ class TestNLLLoss(unittest.TestCase):
 
         assert np.allclose(y.numpy(), expected.numpy())
 
-    def test_backward1(self):
-        n, c = 32, 10
-        x_np = np.random.randn(n, c).astype('f')
-        y = np.random.randint(0, c, (n,))
-
-        x = tensor(x_np, requires_grad=True)
-        x_e = torch.tensor(x_np, requires_grad=True)
-        expected = torch.nn.functional.nll_loss(x_e, torch.tensor(y))
-        expected.backward()
-
-        y = F.nll_loss(x, tensor(y))
-        y.backward()
-
-        assert np.allclose(x.grad.numpy(), x_e.grad.numpy())

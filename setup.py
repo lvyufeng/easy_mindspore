@@ -23,8 +23,8 @@ def clean():
         func(path)
     if os.path.exists(os.path.join(cur_dir, 'build')):
         shutil.rmtree(os.path.join(cur_dir, 'build'), onerror=readonly_handler)
-    if os.path.exists(os.path.join(cur_dir, 'mindtorch.egg-info')):
-        shutil.rmtree(os.path.join(cur_dir, 'mindtorch.egg-info'), onerror=readonly_handler)
+    if os.path.exists(os.path.join(cur_dir, 'easy_mindspore.egg-info')):
+        shutil.rmtree(os.path.join(cur_dir, 'easy_mindspore.egg-info'), onerror=readonly_handler)
 
 
 clean()
@@ -72,7 +72,7 @@ class EggInfo(egg_info):
     """Egg info."""
     def run(self):
         super().run()
-        egg_info_dir = os.path.join(cur_dir, 'mindtorch.egg-info')
+        egg_info_dir = os.path.join(cur_dir, 'easy_mindspore.egg-info')
         update_permissions(egg_info_dir)
 
 
@@ -80,18 +80,18 @@ class BuildPy(build_py):
     """BuildPy."""
     def run(self):
         super().run()
-        mindarmour_dir = os.path.join(pkg_dir, 'lib', 'mindtorch')
+        mindarmour_dir = os.path.join(pkg_dir, 'lib', 'easy_mindspore')
         update_permissions(mindarmour_dir)
 
 
 setup(
-    name="mindtorch",
+    name="easy_mindspore",
     version=version,
     author="lvyufeng",
-    url="https://github.com/lvyufeng/mindtorch",
+    url="https://github.com/lvyufeng/easy_mindspore",
     project_urls={
-        'Sources': 'https://github.com/lvyufeng/mindtorch',
-        'Issue Tracker': 'https://github.com/lvyufeng/mindtorch/issues',
+        'Sources': 'https://github.com/lvyufeng/easy_mindspore',
+        'Issue Tracker': 'https://github.com/lvyufeng/easy_mindspore/issues',
     },
     description=get_description(),
     license='MIT License',

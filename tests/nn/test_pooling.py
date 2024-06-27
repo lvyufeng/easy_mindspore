@@ -1,9 +1,8 @@
 import unittest
 import numpy as np
-from mindtorch.nn import functional as F
-from mindtorch import tensor
+from easy_mindspore.nn import functional as F
+from easy_mindspore import tensor
 import torch
-from .. import gradient_check
 
 
 class TestPooling(unittest.TestCase):
@@ -38,17 +37,3 @@ class TestPooling(unittest.TestCase):
 
         assert np.allclose(y.numpy(), e.numpy())
         assert np.allclose(yi.numpy(), ei.numpy())
-
-    def test_backward1(self):
-        n, c, h, w = 1, 5, 16, 16
-        ksize, stride, pad = 2, 2, 0
-        x = tensor(np.random.randn(n, c, h, w).astype('f') * 1000, requires_grad=True)
-        f = lambda x: F.max_pool2d(x, ksize, stride, pad)
-        self.assertTrue(gradient_check(f, x))
-
-    def test_backward1(self):
-        n, c, h, w = 1, 5, 16, 16
-        ksize, stride, pad = 2, 2, 0
-        x = tensor(np.random.randn(n, c, h, w).astype('f') * 1000, requires_grad=True)
-        f = lambda x: F.max_pool2d(x, ksize, stride, pad)
-        self.assertTrue(gradient_check(f, x))

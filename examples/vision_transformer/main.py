@@ -1,8 +1,8 @@
 import argparse
-import mindtorch as torch
-from mindtorch import nn
-from mindtorch import optim
-from mindtorch.utils.data import DataLoader
+import easy_mindspore as torch
+from easy_mindspore import nn
+from easy_mindspore import optim
+from easy_mindspore.utils.data import DataLoader
 # import torch
 # import torch.nn as nn
 # from torch import optim

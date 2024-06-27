@@ -1,10 +1,10 @@
 from __future__ import print_function
 import argparse
-import mindtorch as torch
-import mindtorch.nn as nn
-import mindtorch.nn.functional as F
-import mindtorch.optim as optim
-from mindtorch.optim.lr_scheduler import StepLR
+import easy_mindspore as torch
+import easy_mindspore.nn as nn
+import easy_mindspore.nn.functional as F
+import easy_mindspore.optim as optim
+from easy_mindspore.optim.lr_scheduler import StepLR
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

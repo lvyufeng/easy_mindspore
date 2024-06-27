@@ -5,7 +5,7 @@ to minimize a function, say ** 2
 import sys
 sys.path.append('./')
 import torch
-import mindtorch as torch
+import easy_mindspore as torch
 
 x = torch.tensor([10., -10., 10., -5., 6., 3., 1.], requires_grad=True)
 
