@@ -1,3 +1,5 @@
+import easy_mindspore
+
 def slice_helper(slice_spec):
     if not isinstance(slice_spec, (list, tuple)):
         slice_spec = [slice_spec]
@@ -45,3 +47,13 @@ def slice_helper(slice_spec):
         index += 1
 
     return begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask
+
+def _get_unfold_indices(input_shape, dimension, size, step):
+    if dimension < 0:
+        dimension += len(input_shape)
+    indices = []
+    for i in range(0, input_shape[dimension] - size + 1, step):
+        indices.append(list(range(i, i + size)))
+
+    indices = easy_mindspore.tensor(indices)
+    return indices, dimension

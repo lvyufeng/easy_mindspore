@@ -6,9 +6,28 @@ import numpy as np
 import easy_mindspore
 from . import dtype
 
+dtype_infer = {
+    np.float64: dtype.float32,
+    np.float32: dtype.float32,
+    np.float16: dtype.float16,
+    np.int16: dtype.int16,
+    np.int32: dtype.int32,
+    np.int64: dtype.int32,
+    np.int8: dtype.int8,
+    int: dtype.int32,
+    float: dtype.float32,
+    np.bool_: dtype.bool,
+    bool: dtype.bool,
+    list: None,
+    tuple: None,
+    np.longlong: dtype.long
+}
+
 class Tensor:
     tensor = None
     stub = None
+    adapter_flag = False # for MS convert
+
     def __init__(self, input, dtype=None): # pylint: disable=super-init-not-called
         if isinstance(input, TensorNode):
             self.stub = input
@@ -406,7 +425,8 @@ class Tensor:
 
 
     # Tensor.chunk
-
+    def chunk(self, chunks, dim=0):
+        return easy_mindspore.ops.chunk(self, chunks, dim)
 
     # Tensor.clamp
 
@@ -425,7 +445,8 @@ class Tensor:
         return deepcopy(self)
 
     # Tensor.contiguous
-
+    def contiguous(self):
+        return self
 
     # Tensor.copy_
     def copy_(self, value):
@@ -617,13 +638,17 @@ class Tensor:
 
 
     # Tensor.eq
-
+    def eq(self, other):
+        return easy_mindspore.ops.eq(self, other)
 
     # Tensor.eq_
-
+    def eq_(self, other):
+        out = easy_mindspore.ops.eq(self, other)
+        self.data = out
 
     # Tensor.equal
-
+    def equal(self, other):
+        return easy_mindspore.ops.eq(self, other)
 
     # Tensor.erf
 
@@ -917,7 +942,8 @@ class Tensor:
 
 
     # Tensor.item
-
+    def item(self):
+        return self.numpy().item()
 
     # Tensor.kthvalue
 
@@ -1085,7 +1111,8 @@ class Tensor:
 
 
     # Tensor.mean
-
+    def mean(self, dim=None, keepdim=False, *, dtype=None):
+        return easy_mindspore.ops.mean(self, dim, keepdim, dtype=dtype)
 
     # Tensor.module_load
 
@@ -1329,7 +1356,7 @@ class Tensor:
 
     # Tensor.reshape
     def reshape(self, *shape):
-        return easy_mindspore.ops.reshape(self, *shape)
+        return easy_mindspore.ops.reshape(self, shape)
 
     # Tensor.reshape_as
 
@@ -1669,7 +1696,10 @@ class Tensor:
         return easy_mindspore.ops.unflatten(self, dim, sizes)
 
     # Tensor.unfold
-
+    def unfold(self, dimension, size, step):
+        _indices, _dimension = easy_mindspore.ops.utils._get_unfold_indices(self.shape, dimension, size, step)
+        output = easy_mindspore.ops.tf_gather(self, _indices, axis=_dimension)
+        return easy_mindspore.ops.transpose(output, _dimension + 1, -1)
 
     # Tensor.uniform_
 
@@ -1700,7 +1730,8 @@ class Tensor:
         return self.reshape(*shape)
 
     # Tensor.view_as
-
+    def view_as(self, other):
+        return self.reshape(*other.shape)
 
     # Tensor.vsplit
 
@@ -1716,21 +1747,6 @@ class Tensor:
 
     # Tensor.zero_
 
-dtype_infer = {
-    np.float64: dtype.float32,
-    np.float32: dtype.float32,
-    np.float16: dtype.float16,
-    np.int16: dtype.int16,
-    np.int32: dtype.int32,
-    np.int64: dtype.int32,
-    np.int8: dtype.int8,
-    int: dtype.int32,
-    float: dtype.float32,
-    np.bool_: dtype.bool,
-    bool: dtype.bool,
-    list: None,
-    np.longlong: dtype.long
-}
 
 def tensor(data, *, dtype=None):
     return Tensor(data, dtype)

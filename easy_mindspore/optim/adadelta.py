@@ -25,29 +25,26 @@ class Adadelta(Optimizer):
         defaults = dict(lr=lr, rho=rho, eps=eps, weight_decay=weight_decay)
         super(Adadelta, self).__init__(params, defaults)
 
-    def step(self, closure=None):
+    def step(self, grads):
         """Performs a single optimization step.
 
         Arguments:
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
 
+        loss = None
+        start = 0
         for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is None:
-                    continue
-                grad = p.grad
+            end = start + len(group['params'])
+            for (p, grad) in zip(group['params'], grads[start: end]):
                 state = self.state[p]
 
                 # State initialization
                 if len(state) == 0:
                     state['step'] = 0
-                    state['square_avg'] = easy_mindspore.zeros(grad.shape)
-                    state['acc_delta'] = easy_mindspore.zeros(grad.shape)
+                    state['square_avg'] = easy_mindspore.ops.zeros(grad.shape)
+                    state['acc_delta'] = easy_mindspore.ops.zeros(grad.shape)
 
                 square_avg, acc_delta = state['square_avg'], state['acc_delta']
                 rho, eps = group['rho'], group['eps']
@@ -62,8 +59,8 @@ class Adadelta(Optimizer):
                 # delta = acc_delta.add(eps).sqrt_().div_(std).mul_(grad)
                 # p.add_(delta, alpha=-group['lr'])
                 # acc_delta.mul_(rho).addcmul_(delta, delta, value=1-rho)
-                param_, square_avg_, acc_delta_ = easy_mindspore._operations.raw_adadelta(
-                    p.data, square_avg.data, acc_delta.data, group['lr'], rho, eps, grad.data
+                param_, square_avg_, acc_delta_ = easy_mindspore.ops.optim.raw_adadelta(
+                    p, square_avg.data, acc_delta.data, group['lr'], rho, eps, grad
                 )
                 p.data = param_
                 square_avg.data = square_avg_

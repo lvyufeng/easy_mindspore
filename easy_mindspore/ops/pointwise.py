@@ -464,6 +464,8 @@ def softmax(input, dim=-1):
 # sqrt
 _sqrt = _ops.Sqrt()
 def sqrt(input):
+    if not isinstance(input, easy_mindspore.Tensor):
+        return easy_mindspore.Tensor(math.sqrt(input))
     return execute(_sqrt, input)
 
 # square

@@ -1,4 +1,4 @@
-from . import utils
+from . import utils, optim
 from .pointwise import *
 from .creation import *
 from .random import *

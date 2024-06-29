@@ -15,6 +15,7 @@
 """mindnlp parameter"""
 from mindspore._c_expression import Tensor as MSTensor
 from mindspore.common._stub_tensor import StubTensor
+from mindspore.common import Parameter as MSParameter
 from .._tensor import Tensor
 
 class Parameter(Tensor):
@@ -27,12 +28,12 @@ class Parameter(Tensor):
         # Create a new instance of Parameter
         instance = super(Parameter, cls).__new__(cls)
 
-        if isinstance(data, (Tensor, StubTensor)):
+        if isinstance(data, Tensor):
             # Reuse the MSTensor instance from data
-            instance.tensor = data.tensor
+            instance.tensor = MSParameter(data.data)
             instance.stub = data.stub  # Reuse the stub attribute from data
         elif isinstance(data, MSTensor):
-            instance.tensor = data
+            instance.tensor = MSParameter(data)
             instance.stub = None
 
         instance.requires_grad = requires_grad

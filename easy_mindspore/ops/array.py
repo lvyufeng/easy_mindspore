@@ -2,6 +2,7 @@ from mindspore import ops as _ops
 from mindspore.ops import Primitive
 
 from ..executor import execute
+from easy_mindspore import MS_22
 
 # adjoint
 
@@ -12,10 +13,13 @@ def argwhere(input):
     return execute(_nonzero, input)
 
 # cat
+_ops.Concat
 _cat = Primitive('Concat')
 def cat(tensors, dim=0):
-    _cat.add_prim_attr('axis', dim)
-    return execute(_cat, tensors)
+    if MS_22:
+        _cat.add_prim_attr('axis', dim)
+        return execute(_cat, tensors)
+    return execute(_cat, tensors, dim)
 
 # concat
 def concat(tensors, dim=0):
@@ -31,10 +35,17 @@ def conj(input):
     return execute(_conj, input)
 
 # chunk
+_chunk = Primitive('Split')
 def chunk(input, chunks, dim=0):
-    _split.add_prim_attr('num_split', chunks)
-    _split.add_prim_attr('axis', dim)
-    return execute(_split, input)
+    if MS_22:
+        _chunk.add_prim_attr('num_split', chunks)
+        _chunk.add_prim_attr('output_num', chunks)
+        _chunk.add_prim_attr('axis', dim)
+        return execute(_chunk, input)
+    _chunk._set_prim_arg("axis", dim)
+    _chunk._set_prim_arg("output_num", chunks)
+
+    return execute(_chunk, input, dim, chunks)
 
 # dsplit
 
@@ -46,7 +57,14 @@ def chunk(input, chunks, dim=0):
 
 
 # gather
-
+_ops.Gather
+_gather = Primitive('Gather')
+_gather.add_prim_attr("batch_dims", 0)
+_gather.init_prim_io_names(inputs=['params', 'indices', 'axis'], outputs=['output'])
+def tf_gather(params, indices, axis):
+    if MS_22:
+        return execute(_gather, params, indices, axis)
+    return execute(_gather, params, indices, axis, 0)
 
 # hsplit
 
@@ -87,7 +105,7 @@ def nonzero(input, *, as_tuple=False):
     return argwhere(input)
 
 # permute
-_permute = _ops.Transpose
+_permute = _ops.Transpose()
 def permute(input, dims):
     return execute(_permute, input, dims)
 
@@ -133,13 +151,20 @@ def scatter_add(input, dim, index, src):
 
 
 # split
+_ops.Split
 _split = Primitive('Split')
 def split(tensor, split_size_or_sections, dim=0):
     assert isinstance(split_size_or_sections, int)
     num_split = tensor.shape[dim] // split_size_or_sections
-    _split.add_prim_attr('num_split', num_split)
-    _split.add_prim_attr('axis', dim)
-    return execute(_split, tensor)
+    if MS_22:
+        _split.add_prim_attr('num_split', num_split)
+        _split.add_prim_attr('output_num', num_split)
+        _split.add_prim_attr('axis', dim)
+        return execute(_split, tensor)
+
+    _split._set_prim_arg("axis", dim)
+    _split._set_prim_arg("output_num", num_split)
+    return execute(_split, tensor, dim, num_split)
 
 # squeeze
 _squeeze = Primitive('Squeeze')
@@ -215,13 +240,14 @@ _stridedslice.init_prim_io_names(inputs=['x', 'begin', 'end', 'strides'], output
 _stridedslice.add_prim_attr('side_effect_mem', True)
 _stridedslice.add_prim_attr("view_op", True)
 def strided_slice(x, begin, end, strides, begin_mask=0, end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=0):
-    _stridedslice.add_prim_attr('begin_mask', begin_mask)
-    _stridedslice.add_prim_attr('end_mask', end_mask)
-    _stridedslice.add_prim_attr('ellipsis_mask', ellipsis_mask)
-    _stridedslice.add_prim_attr('new_axis_mask', new_axis_mask)
-    _stridedslice.add_prim_attr('shrink_axis_mask', shrink_axis_mask)
-    return execute(_stridedslice, x, begin, end, strides)
-    # return execute(_stridedslice, x, begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask)
+    if MS_22:
+        _stridedslice.add_prim_attr('begin_mask', begin_mask)
+        _stridedslice.add_prim_attr('end_mask', end_mask)
+        _stridedslice.add_prim_attr('ellipsis_mask', ellipsis_mask)
+        _stridedslice.add_prim_attr('new_axis_mask', new_axis_mask)
+        _stridedslice.add_prim_attr('shrink_axis_mask', shrink_axis_mask)
+        return execute(_stridedslice, x, begin, end, strides)
+    return execute(_stridedslice, x, begin, end, strides, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask)
 
 _scatter_nd_update = _ops.ScatterNdUpdate()
 def scatter_nd_update(input, indices, updates):
@@ -239,6 +265,7 @@ __all__ = [
     # column_stack
     # dstack
     # gather
+    "tf_gather",
     # hsplit
     # hstack
     # index_add

@@ -3,6 +3,7 @@ from mindspore import ops as _ops
 from mindspore.ops import Primitive
 
 from ..executor import execute
+from easy_mindspore import MS_22
 
 # addbmm
 def addbmm(input, batch1, batch2, *, beta=1, alpha=1):
@@ -24,7 +25,9 @@ def baddbmm(input, batch1, batch2, *, beta=1, alpha=1):
 # bmm
 _bmm = _ops.BatchMatMul()
 def bmm(input, other):
-    return execute(_bmm, input, other)
+    if MS_22:
+        return execute(_bmm, input, other)
+    return execute(_bmm, input, other, False, False)
 
 # chain_matmul
 

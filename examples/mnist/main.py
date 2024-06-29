@@ -1,15 +1,11 @@
 from __future__ import print_function
 import argparse
-import easy_mindspore as torch
-import easy_mindspore.nn as nn
+import easy_mindspore as ems
+from easy_mindspore import nn, ops
 import easy_mindspore.nn.functional as F
 import easy_mindspore.optim as optim
 from easy_mindspore.optim.lr_scheduler import StepLR
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
+from easy_mindspore.autograd import value_and_grad
 from torchvision import datasets, transforms
 import time
 
@@ -30,7 +26,7 @@ class Net(nn.Module):
         x = F.relu(x)
         x = F.max_pool2d(x, 2)
         x = self.dropout1(x)
-        x = torch.flatten(x, 1)
+        x = ops.flatten(x, 1)
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
@@ -38,16 +34,22 @@ class Net(nn.Module):
         output = F.log_softmax(x, dim=1)
         return output
 
-
-def train(args, model, device, train_loader, optimizer, epoch):
+def train(args, model, train_loader, optimizer, epoch):
     model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
+
+    def forward(data, target):
         output = model(data)
         loss = F.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
+        return loss
+
+    grad_fn = value_and_grad(forward, model.parameters())
+
+    for batch_idx, (data, target) in enumerate(train_loader):
+        # s = time.time()
+        loss, grads = grad_fn(data, target)
+        # t = time.time()
+        optimizer.step(grads)
+        # print(t - s)
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
@@ -56,17 +58,15 @@ def train(args, model, device, train_loader, optimizer, epoch):
                 break
 
 
-def test(model, device, test_loader):
+def test(model, test_loader):
     model.eval()
     test_loss = 0
     correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
-            pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
+    for data, target in test_loader:
+        output = model(data)
+        test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
+        pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
+        correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
 
@@ -101,23 +101,11 @@ def main():
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     args = parser.parse_args()
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
 
-    torch.manual_seed(args.seed)
-
-    if use_cuda:
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
+    ems.manual_seed(args.seed)
 
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}
-    if use_cuda:
-        cuda_kwargs = {'num_workers': 1,
-                       'pin_memory': True,
-                       'shuffle': True}
-        train_kwargs.update(cuda_kwargs)
-        test_kwargs.update(cuda_kwargs)
 
     transform=transforms.Compose([
         transforms.ToTensor(),
@@ -127,24 +115,24 @@ def main():
                        transform=transform)
     dataset2 = datasets.MNIST('./data', train=False,
                        transform=transform)
-    train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
+    train_loader = ems.utils.data.DataLoader(dataset1,**train_kwargs)
+    test_loader = ems.utils.data.DataLoader(dataset2, **test_kwargs)
 
-    model = Net().to(device)
+    model = Net()
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
 
     for epoch in range(1, args.epochs + 1):
         s = time.time()
-        train(args, model, device, train_loader, optimizer, epoch)
+        train(args, model, train_loader, optimizer, epoch)
         t = time.time()
         print('epoch time:', t - s)
-        test(model, device, test_loader)
+        test(model, test_loader)
         scheduler.step()
 
     if args.save_model:
-        torch.save(model.state_dict(), "mnist_cnn.pt")
+        ems.save(model.state_dict(), "mnist_cnn.pt")
 
 
 if __name__ == '__main__':

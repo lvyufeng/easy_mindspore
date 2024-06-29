@@ -1,5 +1,5 @@
 import math
-import easy_mindspore as torch
+import easy_mindspore
 from .optimizer import Optimizer
 
 
@@ -45,7 +45,7 @@ class Adam(Optimizer):
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
-    def step(self, closure=None):
+    def step(self, grads):
         """Performs a single optimization step.
 
         Arguments:
@@ -53,14 +53,13 @@ class Adam(Optimizer):
                 and returns the loss.
         """
         loss = None
-        if closure is not None:
-            loss = closure()
 
+        start = 0
         for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is None:
-                    continue
-                grad = p.grad
+            end = start + len(group['params'])
+            for (p, grad) in zip(group['params'], grads[start: end]):
+                start = end
+
                 # if grad.is_sparse:
                 #     raise RuntimeError('Adam does not support sparse gradients, please consider SparseAdam instead')
                 amsgrad = group['amsgrad']
@@ -71,12 +70,12 @@ class Adam(Optimizer):
                 if len(state) == 0:
                     state['step'] = 0
                     # Exponential moving average of gradient values
-                    state['exp_avg'] = torch.zeros_like(p)
+                    state['exp_avg'] = easy_mindspore.ops.zeros_like(p)
                     # Exponential moving average of squared gradient values
-                    state['exp_avg_sq'] = torch.zeros_like(p)
+                    state['exp_avg_sq'] = easy_mindspore.ops.zeros_like(p)
                     if amsgrad:
                         # Maintains max of all exp. moving avg. of sq. grad. values
-                        state['max_exp_avg_sq'] = torch.zeros_like(p)
+                        state['max_exp_avg_sq'] = easy_mindspore.ops.zeros_like(p)
 
                 exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
                 if amsgrad:
@@ -86,8 +85,7 @@ class Adam(Optimizer):
                 state['step'] += 1
 
                 if group['weight_decay'] != 0:
-                    # grad = grad.add(p, alpha=group['weight_decay'])
-                    grad.data = torch._operations.fused_add_mul(grad.data, p.data, group['weight_decay'])
+                    grad = grad.add(p, alpha=group['weight_decay'])
                 # # Decay the first and second moment running average coefficient
                 # exp_avg.mul_(beta1).add_(grad, 1 - beta1)
                 # exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2)
@@ -108,10 +106,10 @@ class Adam(Optimizer):
                 beta1_power = beta1 ** state['step']
                 beta2_power = beta2 ** state['step']
                 if amsgrad:
-                    torch._operations.raw_adam_amsgrad(p.data, exp_avg.data, exp_avg_sq.data, max_exp_avg_sq.data,
-                                                       beta1_power, beta2_power, group['lr'], beta1, beta2, group['eps'], grad.data)
+                    easy_mindspore.ops.optim.raw_adam_amsgrad(p, exp_avg.data, exp_avg_sq.data, max_exp_avg_sq.data,
+                                                       beta1_power, beta2_power, group['lr'], beta1, beta2, group['eps'], grad)
                 else:
-                    torch._operations.raw_adam(p.data, exp_avg.data, exp_avg_sq.data, beta1_power, beta2_power,
-                                               group['lr'], beta1, beta2, group['eps'], grad.data)
+                    easy_mindspore.ops.optim.raw_adam(p, exp_avg.data, exp_avg_sq.data, beta1_power, beta2_power,
+                                               group['lr'], beta1, beta2, group['eps'], grad)
 
         return loss

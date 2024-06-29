@@ -1,19 +1,16 @@
 import argparse
-import easy_mindspore as torch
-from easy_mindspore import nn
+import easy_mindspore as ems
+from easy_mindspore import nn, ops
 from easy_mindspore import optim
+from easy_mindspore.autograd import value_and_grad
 from easy_mindspore.utils.data import DataLoader
-# import torch
-# import torch.nn as nn
-# from torch import optim
-# from torch.utils.data import DataLoader
 import torchvision
 from torchvision.transforms import Compose, ToTensor, Resize
 import numpy as np
 from tqdm import tqdm
 import time
-from mindspore._c_expression import _framework_profiler_step_start
-from mindspore._c_expression import _framework_profiler_step_end
+import mindspore
+# mindspore.set_context(pynative_synchronize=True)
 
 class PatchExtractor(nn.Module):
     def __init__(self, patch_size=16):
@@ -47,30 +44,27 @@ class InputEmbedding(nn.Module):
         self.patch_size = args.patch_size
         self.n_channels = args.n_channels
         self.latent_size = args.latent_size
-        use_cuda = not args.no_cuda and torch.cuda.is_available()
-        self.device = torch.device("cuda" if use_cuda else "cpu")
         self.batch_size = args.batch_size
         self.input_size = self.patch_size * self.patch_size * self.n_channels
 
         # Linear projection
         self.LinearProjection = nn.Linear(self.input_size, self.latent_size)
         # Class token
-        self.class_token = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size)).to(self.device)
+        self.class_token = nn.Parameter(ops.randn(self.batch_size, 1, self.latent_size))
         # Positional embedding
-        self.pos_embedding = nn.Parameter(torch.randn(self.batch_size, 1, self.latent_size)).to(self.device)
+        self.pos_embedding = nn.Parameter(ops.randn(self.batch_size, 1, self.latent_size))
 
     def forward(self, input_data):
-        input_data = input_data.to(self.device)
+        input_data = input_data
         # Patchifying the Image
         patchify = PatchExtractor(patch_size=self.patch_size)
         patches = patchify(input_data)
 
-        linear_projection = self.LinearProjection(patches).to(self.device)
+        linear_projection = self.LinearProjection(patches)
         b, n, _ = linear_projection.shape
-        linear_projection = torch.cat((self.class_token, linear_projection), dim=1)
+        linear_projection = ops.cat((self.class_token, linear_projection), dim=1)
         pos_embed = self.pos_embedding[:, :n + 1, :]
         linear_projection += pos_embed
-
         return linear_projection
 
 
@@ -131,14 +125,13 @@ class ViT(nn.Module):
 
 class TrainEval:
 
-    def __init__(self, args, model, train_dataloader, val_dataloader, optimizer, criterion, device):
+    def __init__(self, args, model, train_dataloader, val_dataloader, optimizer, criterion):
         self.model = model
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.optimizer = optimizer
         self.criterion = criterion
         self.epoch = args.epochs
-        self.device = device
         self.args = args
 
     def train_fn(self, current_epoch):
@@ -146,17 +139,19 @@ class TrainEval:
         total_loss = 0.0
         tk = tqdm(self.train_dataloader, desc="EPOCH" + "[TRAIN]" + str(current_epoch + 1) + "/" + str(self.epoch))
 
-        for t, data in enumerate(tk):
-            # _framework_profiler_step_start()
-            images, labels = data
-            images, labels = images.to(self.device), labels.to(self.device)
-            self.optimizer.zero_grad()
+        def forward(images, labels):
             logits = self.model(images)
             loss = self.criterion(logits, labels)
-            loss.backward()
-            self.optimizer.step()
+            return loss
+
+        grad_fn = value_and_grad(forward, self.model.parameters())
+
+        for t, data in enumerate(tk):
+            images, labels = data
+            images, labels = images, labels
+            loss, grads = grad_fn(images, labels)
+            self.optimizer.step(grads)
             total_loss += loss.item()
-            # _framework_profiler_step_end()
             tk.set_postfix({"Loss": "%6f" % float(total_loss / (t + 1))})
             if self.args.dry_run:
                 break
@@ -170,7 +165,7 @@ class TrainEval:
 
         for t, data in enumerate(tk):
             images, labels = data
-            images, labels = images.to(self.device), labels.to(self.device)
+            images, labels = images, labels
 
             logits = self.model(images)
             loss = self.criterion(logits, labels)
@@ -245,9 +240,6 @@ def main():
                         help='quickly check a single pass')
     args = parser.parse_args()
 
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-
     transforms = Compose([
         Resize((args.img_size, args.img_size)),
         ToTensor()
@@ -257,12 +249,12 @@ def main():
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=True)
 
-    model = ViT(args).to(device)
+    model = ViT(args)
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = nn.CrossEntropyLoss()
 
-    TrainEval(args, model, train_loader, valid_loader, optimizer, criterion, device).train()
+    TrainEval(args, model, train_loader, valid_loader, optimizer, criterion).train()
 
 if __name__ == "__main__":
     main()

@@ -17,7 +17,7 @@ from mindspore.common.initializer import (
 )
 from easy_mindspore import Tensor
 
-def initializer(init, shape=None, dtype=mindspore.float32):
+def initializer(init, shape, dtype=mindspore.float32):
     """
     Create and initialize a tensor.
 
@@ -57,6 +57,9 @@ def initializer(init, shape=None, dtype=mindspore.float32):
         >>> w3 = Parameter(initializer(One(), [1, 2, 3], mindspore.float32))
         >>> w4 = Parameter(initializer(0, [1, 2, 3], mindspore.float32))
     """
+    if dtype is None:
+        dtype = mindspore.float32
+
     if not isinstance(init, (numbers.Number, str, Initializer)):
         raise TypeError("For 'initializer', the type of the 'init' argument should be 'Tensor', 'number', 'string' "
                         "or 'initializer', but got {}.".format(type(init)))

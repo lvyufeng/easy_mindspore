@@ -23,7 +23,13 @@ def zeros_like(input, *, dtype=None):
     return zeros(*input.shape, dtype=input.dtype if dtype is None else dtype)
 
 # ones
+_ones = _ops.Ones()
 def ones(*size, dtype=None):
+    # if dtype is None:
+    #     dtype = easy_mindspore.float32
+    # if isinstance(size[0], tuple):
+    #     size = size[0]
+    # return execute(_ones, size, dtype)
     if isinstance(size[0], tuple):
         size = size[0]
     return easy_mindspore.Tensor(np.ones(size), dtype)

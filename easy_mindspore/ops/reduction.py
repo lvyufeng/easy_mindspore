@@ -8,6 +8,7 @@ from ..executor import execute
 from .pointwise import pow
 
 import easy_mindspore
+from easy_mindspore import MS_22
 
 device_target = mindspore.get_context('device_target')
 
@@ -60,13 +61,17 @@ def any(input, dim, keepdim=False, *, dtype=None):
     return execute(_any, input, dim).to(dtype)
 
 # max
+_ops.ArgMaxWithValue
 _max = Primitive('ArgMaxWithValue')
 _max.init_prim_io_names(inputs=['x'], outputs=['index', 'values'])
 def max(input, dim, keepdim=False):
     _max.add_prim_attr('keep_dims', keepdim)
     _max.add_prim_attr('dimension', dim)
     _max.add_prim_attr('axis', dim)
-    max_indices, max = execute(_max, input)
+    if MS_22:
+        max_indices, max = execute(_max, input)
+    else:
+        max_indices, max = execute(_max, input, dim, keepdim)
     return max, max_indices
 
 # min
@@ -88,9 +93,11 @@ _ops.logsumexp
 # mean
 _mean = Primitive('ReduceMean')
 _mean.init_prim_io_names(inputs=['input_x', 'axis'], outputs=['y'])
-def mean(input, dim, keepdim=False, *, dtype=None, out=None):
-    _mean.add_prim_attr('keep_dims', keepdim)
-    return execute(_mean, input, dim).to(dtype)
+def mean(input, dim, keepdim=False, *, dtype=None):
+    if MS_22:
+        _mean.add_prim_attr('keep_dims', keepdim)
+        return execute(_mean, input, dim).to(dtype)
+    return execute(_mean, input, dim, keepdim).to(dtype)
 
 # nanmean
 
@@ -168,6 +175,7 @@ def std_mean(input, dim=None, *, correction=1, keepdim=False):
         mean(input, dim, keepdim)
 
 # sum
+_ops.ReduceSum
 _sum = Primitive('ReduceSum')
 _sum.init_prim_io_names(inputs=['input_x', 'axis'], outputs=['y'])
 _sum.add_prim_attr('skip_mode', False)
@@ -177,7 +185,9 @@ def sum(input, dim=None, keepdim=False, *, dtype=None):
     if dim is None:
         dim = ()
     _sum.add_prim_attr('keep_dims', keepdim)
-    return execute(_sum, input, dim).to(dtype)
+    if MS_22:
+        return execute(_sum, input, dim).to(dtype)
+    return execute(_sum, input, dim, keepdim, False).to(dtype)
 
 # unique
 _ops.unique

@@ -2,7 +2,7 @@ from mindspore._c_expression import GradOperation_
 from mindspore.common.api import _pynative_executor
 from mindspore.ops import stop_gradient, GradOperation
 from typing import Generator
-from easy_mindspore import Tensor
+from easy_mindspore import Tensor, MS_23
 
 grad_cell = GradOperation(False, True, False)
 def value_and_grad(fn, params, has_aux=False):
@@ -25,16 +25,14 @@ def value_and_grad(fn, params, has_aux=False):
 
     def value_and_grad_f(*args):
         _pynative_executor.set_grad_flag(True)
-        _pynative_executor.new_graph(fn, *args, *params)
+        _pynative_executor.new_graph(fn, *args)
         values = fn_(*args)
         _pynative_executor.end_graph(fn, values, *args)
 
-        if params is None:
-            # grads = grad_(fn_)(*args)
-            _pynative_executor.grad(fn_, grad_, params, None, *args)
-            grads = _pynative_executor()
-        else:
+        if MS_23:
+            grads = _pynative_executor.grad(fn_, grad_, params, None, *args)
             # grads = grad_(fn_, params)(*args, *params)
+        else:
             _pynative_executor.grad(fn_, grad_, params, None, *args)
             grads = _pynative_executor()
         grads = tuple(Tensor(grad) for grad in grads)
